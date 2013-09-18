@@ -26,3 +26,6 @@ local.properties
 
 # Built files
 *.class
+
+# Really #$@%ing ignore bin
+bin/
