@@ -13,10 +13,12 @@ public class Main {
 		// for debug.
 		//Settings packSettings = new Settings();
 		String textureInputDir = "../0_graphics/";
+		//boolean skip
 		if (args.length > 0) {
 			textureInputDir = args[0];
 		}
-		TexturePacker2.process(textureInputDir,"../wasabi-android/assets", "wasabi-atlas");
+		TexturePacker2.processIfModified(textureInputDir, "../wasabi-android/assets",
+				"wasabi-atlas.atlas");
 
 		// Set up LWJGL config
 		LwjglApplicationConfiguration cfg = new LwjglApplicationConfiguration();

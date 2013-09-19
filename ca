@@ -1,0 +1,4 @@
+#!/bin/bash
+# Removes generated atlast files. Good to do before comitting.
+# @author max
+rm ./wasabi-android/assets/wasabi-atlas*.*
