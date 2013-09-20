@@ -1,4 +1,4 @@
-package com.mortrag.ut.wasabi;
+package com.mortrag.ut.wasabi.util;
 
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;

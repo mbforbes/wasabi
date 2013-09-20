@@ -1,11 +1,11 @@
-package com.mortrag.ut.wasabi;
+package com.mortrag.ut.wasabi.input;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import com.badlogic.gdx.Input;
 
-public class ScreenKeys {
+public class FullKeys {
 	
 	//only ever one
 	private static Map<Integer, Keys> screenKeysMap = null;

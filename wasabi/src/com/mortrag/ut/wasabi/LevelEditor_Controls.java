@@ -1,89 +1,47 @@
 package com.mortrag.ut.wasabi;
 
-import java.util.HashMap;
-import java.util.Map;
+import com.badlogic.gdx.Input.Keys;
+import com.mortrag.ut.wasabi.input.Controls;
 
-import com.badlogic.gdx.Input;
-import com.badlogic.gdx.utils.Array;
-import com.badlogic.gdx.utils.GdxRuntimeException;
-import com.mortrag.ut.wasabi.ScreenKeys;
-import com.mortrag.ut.wasabi.util.Constants;
-import com.mortrag.ut.wasabi.util.Debug;
+public class LevelEditor_Controls extends Controls {
 
-public class LevelEditor_Controls implements Controls {
-	private String controlsList;
-	private Map<ScreenKeys.Keys, Commands> commandsMap;
-	private Array<String> commandsDisplay;
-	
-	// Possible future feature: read from config file? (Worth it?)
-	public LevelEditor_Controls() {
-		commandsMap = new HashMap<ScreenKeys.Keys, Commands>();
-		commandsDisplay = new Array<String>();
-		
-		add(ScreenKeys.Keys.W, LevelEditor_Commands.CAMERA_UP);
-		add(ScreenKeys.Keys.S, LevelEditor_Commands.CAMERA_DOWN);
-		add(ScreenKeys.Keys.A, LevelEditor_Commands.CAMERA_LEFT);
-		add(ScreenKeys.Keys.D, LevelEditor_Commands.CAMERA_RIGHT);
-		addBreak();
-		add(ScreenKeys.Keys.Q, LevelEditor_Commands.CAMERA_ZOOM_OUT);
-		add(ScreenKeys.Keys.E, LevelEditor_Commands.CAMERA_ZOOM_IN);
-		addBreak();
-		add(ScreenKeys.Keys.UP, LevelEditor_Commands.MOVE_UP);
-		add(ScreenKeys.Keys.DOWN, LevelEditor_Commands.MOVE_DOWN);
-		add(ScreenKeys.Keys.LEFT, LevelEditor_Commands.MOVE_LEFT);
-		add(ScreenKeys.Keys.RIGHT, LevelEditor_Commands.MOVE_RIGHT);
-		addBreak();
-		add(ScreenKeys.Keys.N, LevelEditor_Commands.NEXT_SPRITE);
-		add(ScreenKeys.Keys.SPACE, LevelEditor_Commands.PLACE_SPRITE);
-		addBreak();
-		add(ScreenKeys.Keys.P, LevelEditor_Commands.PAUSE);
-		
-		if(Debug.DEBUG) {
-			checkControls();
-		}
-	}
-	
-	/**
-	 * Adds entry to map and list. Should only be called @ creatoin.
-	 */
-	private void add(ScreenKeys.Keys key, Commands command) {
-		commandsMap.put(key, command);
-		commandsDisplay.add(key + " : " + command);
-	}		
-	
-	/**
-	 * Puts a line break in the commands display. Should only be called @ creation.
-	 */
-	private void addBreak() {
-		commandsDisplay.add(Constants.NL);
-	}
-	
-	private void checkControls() {
-		for (Commands c : LevelEditor_Commands.values()) {
-			if (!commandsMap.containsValue(c)) {
-				throw new GdxRuntimeException("Need key mapping for " + c.toString());
-			}
-		}
-	}
-
-	
-	/**
-	 * @return Commands c if this key is mapped to a command, or null if not.
-	 */
 	@Override
-	public Commands getCommand(int k) {
-		ScreenKeys.Keys key = ScreenKeys.getMap().get(k);
-		if (key == null) {
-			return null;
-		}
-		return commandsMap.get(key);		
+	public void addKeyCommands() {
+		addControlText("Keyboard:");
+		addKeyCommand(Keys.W, KeyModifier.ANY, LevelEditor_Commands.CAMERA_UP, "W");
+		addKeyCommand(Keys.S, KeyModifier.ANY, LevelEditor_Commands.CAMERA_DOWN, "S");
+		addKeyCommand(Keys.A, KeyModifier.ANY, LevelEditor_Commands.CAMERA_LEFT, "A");
+		addKeyCommand(Keys.D, KeyModifier.ANY, LevelEditor_Commands.CAMERA_RIGHT, "D");
+		addControlText("");
+		addKeyCommand(Keys.Q, KeyModifier.ANY, LevelEditor_Commands.CAMERA_ZOOM_OUT, "Q");
+		addKeyCommand(Keys.E, KeyModifier.ANY, LevelEditor_Commands.CAMERA_ZOOM_IN, "E");
+		addControlText("");
+		addKeyCommand(Keys.UP, KeyModifier.ANY, LevelEditor_Commands.MOVE_UP, "up");
+		addKeyCommand(Keys.DOWN, KeyModifier.ANY, LevelEditor_Commands.MOVE_DOWN, "down");
+		addKeyCommand(Keys.LEFT, KeyModifier.ANY, LevelEditor_Commands.MOVE_LEFT, "left");
+		addKeyCommand(Keys.RIGHT, KeyModifier.ANY, LevelEditor_Commands.MOVE_RIGHT, "right");
+		addControlText("");
+		addKeyCommand(Keys.N, KeyModifier.ANY, LevelEditor_Commands.NEXT_SPRITE, "N");
+		addKeyCommand(Keys.P, KeyModifier.SHIFT, LevelEditor_Commands.PREVIOUS_SPRITE, "SHIFT + P");
+		addKeyCommand(Keys.SPACE, KeyModifier.ANY, LevelEditor_Commands.PLACE_SPRITE, "space bar");
+		addKeyCommand(Keys.G, KeyModifier.NONE, LevelEditor_Commands.TOGGLE_GRID, "G");
+		addKeyCommand(Keys.T, KeyModifier.NONE, LevelEditor_Commands.TOGGLE_SNAP_TO_GRID, "T");
+		addKeyCommand(Keys.P, KeyModifier.NONE, LevelEditor_Commands.PAUSE, "P");
 	}
 
 	@Override
-	public String getControlsList() {
-		if (controlsList == null) {
-			controlsList = commandsDisplay.toString(Constants.NL);
-		}
-		return controlsList;
+	public void addScrollCommands() {
+		addControlText("");
+		addControlText("Mouse:");
+		addScrollCommand(ScrollOptions.UP, LevelEditor_Commands.NEXT_SPRITE, "scroll up");
+		addScrollCommand(ScrollOptions.DOWN, LevelEditor_Commands.PREVIOUS_SPRITE, "scroll down");		
+	}
+	
+	@Override
+	public void addMouseCommands() {
+		addMouseCommand(MouseOptions.MOVED, LevelEditor_Commands.CURSOR_MOVED);
+		addControlText(" - move: adjust sprite position");
+		addMouseCommand(MouseOptions.CLICK_DOWN, LevelEditor_Commands.PRESS_DOWN);
+		addControlText(" - click: place current sprite");
 	}
 }

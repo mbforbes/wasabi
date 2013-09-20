@@ -28,6 +28,10 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
+import com.mortrag.ut.wasabi.input.Command;
+import com.mortrag.ut.wasabi.input.Controls;
+import com.mortrag.ut.wasabi.input.WasabiInput;
+import com.mortrag.ut.wasabi.input.WasabiInput.MouseState;
 import com.mortrag.ut.wasabi.util.Debug;
 
 public class LevelEditor implements Screen {
@@ -39,7 +43,7 @@ public class LevelEditor implements Screen {
 	private static final float ZOOM_DELTA = 0.02f;
 	private static final float ZOOM_LIMIT = 0.1f;
 	private static final float CAM_MOVE_SPEED = 5.0f;
-	private static final float SPRITE_MOVE_SPEED = 6.0f;
+	private static final float SPRITE_MOVE_SPEED = 1.0f; // for pixel-perfect nudging
 
 	private static final float MAIN_VIEWPORT_WIDTH_FRAC = 0.75f; 
 	
@@ -70,10 +74,14 @@ public class LevelEditor implements Screen {
 	private Game game;
 	private WasabiInput input;
 	private Controls controls;
-	private Array<Commands> commandList;
+	private Array<Command> commandList;
 	
-	// State
+	// State (should make settings obj / map?)
 	private boolean paused = false;
+	private boolean drawGridlines = true;
+	private boolean snapToGrid = true;
+	private MouseState mouseState;
+	private Vector3 mouseStateUnprojected;
 
 	
 	// --------------------------------------------------------------------------------------------
@@ -126,7 +134,6 @@ public class LevelEditor implements Screen {
 		curSpriteNum = 0;
 		curSprite = sprites.get(curSpriteNum);
 		curSprite.setPosition(0.0f, 0.0f);
-
 		
 		// Bit shapes
 		// -----------------------------------------------------------------------------------------
@@ -152,10 +159,11 @@ public class LevelEditor implements Screen {
 		
 		// Input
 		// -----------------------------------------------------------------------------------------
-		commandList = new Array<Commands>();
+		commandList = new Array<Command>();
 		controls = new LevelEditor_Controls();
-		input.setControls(controls, commandList);
+		mouseState = input.setControls(controls, commandList);
 		Gdx.input.setInputProcessor(input);
+		mouseStateUnprojected = new Vector3();
 	}
 	
 	
@@ -163,6 +171,76 @@ public class LevelEditor implements Screen {
 	// PRIVATE METHODS
 	// --------------------------------------------------------------------------------------------
 
+	// TODO(max): UPDATE ALL CALLS AND DOCUMENTATION!
+	//            
+	
+	/**
+	 * Handle cursor press. (Place sprite.)
+	 * TODO(max): This behavior will change when the mouse is moved in other viewports! :-)
+	 */
+	private void handleCursorPressed() {
+		// main window functionality
+		Sprite placedSprite = new Sprite(curSprite);
+		placedSprites.add(placedSprite);
+	}
+	
+	/**
+	 * Unprojected the mouse state from window space into world space of the main cam.
+	 * TODO(max): This behavior will change when the mouse is moved in other viewports! :-)
+	 */
+	private void handleCursorMoved() {
+		mouseStateUnprojected.x = mouseState.x;
+		mouseStateUnprojected.y = mouseState.y;
+		main_cam.unproject(mouseStateUnprojected, main_viewport.x, main_viewport.y,
+				main_viewport.width, main_viewport.height);
+		curSpriteSetPosition(mouseStateUnprojected.x, mouseStateUnprojected.y);
+	}
+	
+	/**
+	 * Moves based on GRID_SPACING (snapToGrid on) or SPRITE_MOVE_SPEED (snapToGrid off).
+	 * @param xMove -1 for left, 0 for none, 1 for right
+	 * @param yMove -1 for down, 0 for none, 1 for up
+	 */	
+	private void curSpriteNudge(int xMove, int yMove) {
+		// Calculate move speed and do tentative translation.
+		float moveSpeed = snapToGrid ? GRID_SPACING : SPRITE_MOVE_SPEED;
+		curSpriteMove(((float) xMove) * moveSpeed, ((float) yMove) * moveSpeed);
+	}
+	
+	private void curSpriteMove(float xAmt, float yAmt) {
+		curSpriteSetPosition(curSprite.getX() + xAmt, curSprite.getY() + yAmt);
+	}
+	
+
+	private void curSpriteSetPosition(float newX, float newY) {
+		// Fix up out-of-bounds movements before moving.
+		if (newX < 0) {
+			curSprite.setX(0.0f);
+		} else if (newX + curSprite.getWidth() > level_width) {
+			curSprite.setX(level_width - curSprite.getWidth());
+		} else {
+			curSprite.setX(newX);
+		}
+		if (newY < 0) {
+			curSprite.setY(0.0f);
+		} else if (newY + curSprite.getHeight() > level_height) {
+			curSprite.setY(level_height - curSprite.getHeight());
+		} else {
+			curSprite.setY(newY);
+		}
+		
+		// If not snap to grid, done.
+		if (!snapToGrid) {
+			return;
+		}
+		
+		// Snap to grid.
+		float curx = curSprite.getX();
+		float cury = curSprite.getY();		
+		curSprite.setX(curx - curx % GRID_SPACING);
+		curSprite.setY(cury - cury % GRID_SPACING);
+	}
+	
 	private void renderSprites(Camera c) {
 		batch.setProjectionMatrix(c.combined);
 		batch.begin();
@@ -242,7 +320,7 @@ public class LevelEditor implements Screen {
 	/**
 	 * Convenience method for printing.
 	 * @param o  thing to print
-	 */
+	 */	
 	@SuppressWarnings("unused")
 	private void print(Object o) {
 		System.out.println(o);
@@ -250,7 +328,7 @@ public class LevelEditor implements Screen {
 
 	private void handleCommands() {
 
-		Iterator<Commands> cit = commandList.iterator();
+		Iterator<Command> cit = commandList.iterator();
 		while (cit.hasNext()) {
 			LevelEditor_Commands c = (LevelEditor_Commands) cit.next();
 			if (paused) {
@@ -264,7 +342,8 @@ public class LevelEditor implements Screen {
 					break;
 				}
 			} else {
-				// Normal Level Editor command interpretation				
+				// Normal Level Editor command interpretation	
+				float newx, newy;
 				switch(c) {
 				case CAMERA_RIGHT:
 					main_cam.translate(CAM_MOVE_SPEED, 0, 0);	
@@ -287,38 +366,49 @@ public class LevelEditor implements Screen {
 					main_cam.zoom += ZOOM_DELTA;
 					break;
 				case MOVE_RIGHT:
-					if (curSprite.getX() + curSprite.getWidth() + SPRITE_MOVE_SPEED < level_width) {
-						curSprite.translateX(SPRITE_MOVE_SPEED);	
-					}
+					curSpriteNudge(1, 0);
 					break;
 				case MOVE_LEFT:
-					if (curSprite.getX() - SPRITE_MOVE_SPEED > 0) {
-						curSprite.translateX(-SPRITE_MOVE_SPEED);
-					}
+					curSpriteNudge(-1, 0);
 					break;
 				case MOVE_UP:
-					if (curSprite.getY() + curSprite.getHeight() + SPRITE_MOVE_SPEED < level_height) {
-						curSprite.translateY(SPRITE_MOVE_SPEED);
-					}
+					curSpriteNudge(0, 1);
 					break;
 				case MOVE_DOWN:
-					if (curSprite.getY() - SPRITE_MOVE_SPEED > 0) {
-						curSprite.translateY(-SPRITE_MOVE_SPEED);
-					}
+					curSpriteNudge(0, -1);
 					break;
 				case PAUSE:
 					pause();
 					break;
 				case NEXT_SPRITE:
-					float newx = curSprite.getX();
-					float newy = curSprite.getY();
+					newx = curSprite.getX();
+					newy = curSprite.getY();
 					curSpriteNum  = (curSpriteNum + 1) % (sprites.size - 1);
 					curSprite = sprites.get(curSpriteNum);
-					curSprite.setPosition(newx, newy);
+					curSpriteSetPosition(newx, newy);
 					break;
+				case PREVIOUS_SPRITE:
+					newx = curSprite.getX();
+					newy = curSprite.getY();
+					curSpriteNum = curSpriteNum == 0 ? sprites.size - 1 : curSpriteNum - 1;
+					curSprite = sprites.get(curSpriteNum);
+					curSpriteSetPosition(newx, newy);
+					break;					
 				case PLACE_SPRITE:
 					Sprite placedSprite = new Sprite(curSprite);
 					placedSprites.add(placedSprite);
+					break;
+				case TOGGLE_GRID:
+					drawGridlines = !drawGridlines;
+					break;
+				case TOGGLE_SNAP_TO_GRID:
+					snapToGrid = !snapToGrid;
+					break;
+				case CURSOR_MOVED:
+					handleCursorMoved();
+					break;
+				case PRESS_DOWN:
+					handleCursorPressed();
 					break;
 				default:
 					// Do nothing.
@@ -357,8 +447,10 @@ public class LevelEditor implements Screen {
 		gl.glViewport((int) main_viewport.x, (int) main_viewport.y,
 				(int) main_viewport.width, (int) main_viewport.height);
 		renderSprites(main_cam);
-		drawGrid(main_cam);
-
+		if (drawGridlines) {
+			drawGrid(main_cam);	
+		}
+		
 		// Draw minimap sprites
 		gl.glViewport((int) minimap_viewport.x, (int) minimap_viewport.y,
 				(int) minimap_viewport.width, (int) minimap_viewport.height);
