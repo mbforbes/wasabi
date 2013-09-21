@@ -5,19 +5,20 @@ import java.awt.Toolkit;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
 import com.badlogic.gdx.tools.imagepacker.TexturePacker2;
-//import com.badlogic.gdx.tools.imagepacker.TexturePacker2.Settings;
+import com.badlogic.gdx.tools.imagepacker.TexturePacker2.Settings;
 
 public class Main {
 	public static void main(String[] args) {
 		// Texture packing ... shouldn't do this on the real game, but OK now
 		// for debug.
-		//Settings packSettings = new Settings();
+		Settings packSettings = new Settings();
 		String textureInputDir = "../0_graphics/";
-		//boolean skip
 		if (args.length > 0) {
 			textureInputDir = args[0];
 		}
-		TexturePacker2.processIfModified(textureInputDir, "../wasabi-android/assets",
+		packSettings.stripWhitespaceX = true;
+		packSettings.stripWhitespaceY = true;
+		TexturePacker2.processIfModified(packSettings, textureInputDir, "../wasabi-android/assets",
 				"wasabi-atlas.atlas");
 
 		// Set up LWJGL config

@@ -1,14 +1,12 @@
 package com.mortrag.ut.wasabi;
 
 import java.util.Iterator;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+
+import sun.java2d.pipe.Region;
 
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
-import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
@@ -16,13 +14,12 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Pixmap.Format;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.Texture.TextureFilter;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.g2d.BitmapFont.HAlignment;
+import com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import com.badlogic.gdx.math.Rectangle;
@@ -83,7 +80,6 @@ public class LevelEditor implements Screen {
 	private MouseState mouseState;
 	private Vector3 mouseStateUnprojected;
 
-	
 	// --------------------------------------------------------------------------------------------
 	// CONSTRUCTORS
 	// --------------------------------------------------------------------------------------------
@@ -129,11 +125,14 @@ public class LevelEditor implements Screen {
 		// -----------------------------------------------------------------------------------------		
 		batch = new SpriteBatch();
 		atlas = new TextureAtlas(Gdx.files.internal("../wasabi-android/assets/wasabi-atlas.atlas"));
-		sprites = atlas.createSprites();
+		sprites = getSpritesFromAtlas(atlas); // atlas.createSprites();
 		placedSprites = new Array<Sprite>();
 		curSpriteNum = 0;
 		curSprite = sprites.get(curSpriteNum);
+		//TextureAtlas.AtlasSprite as = (TextureAtlas.AtlasSprite) curSprite;
+		// CURSPOT (can remove region offset???)
 		curSprite.setPosition(0.0f, 0.0f);
+		
 		
 		// Bit shapes
 		// -----------------------------------------------------------------------------------------
@@ -172,7 +171,18 @@ public class LevelEditor implements Screen {
 	// --------------------------------------------------------------------------------------------
 
 	// TODO(max): UPDATE ALL CALLS AND DOCUMENTATION!
-	//            
+	
+	/**
+	 * Returns sprites that KEEP THE GODDAMNED WHITESPACE STRIPPED.
+	 */
+	private Array<Sprite> getSpritesFromAtlas(TextureAtlas fullAtlas) {
+		Array<AtlasRegion> regions = fullAtlas.getRegions();
+		Array<Sprite> sprites = new Array<Sprite>(regions.size);
+		for (int i = 0; i < regions.size; i++) {
+			sprites.add(new Sprite(regions.get(i)));
+		}
+		return sprites;
+	}
 	
 	/**
 	 * Handle cursor press. (Place sprite.)
@@ -212,33 +222,28 @@ public class LevelEditor implements Screen {
 	}
 	
 
-	private void curSpriteSetPosition(float newX, float newY) {
+	private void curSpriteSetPosition(float newXReq, float newYReq) {
+		float newX = newXReq;
+		float newY = newYReq;
+		
 		// Fix up out-of-bounds movements before moving.
 		if (newX < 0) {
-			curSprite.setX(0.0f);
+			newX = 0.0f;
 		} else if (newX + curSprite.getWidth() > level_width) {
-			curSprite.setX(level_width - curSprite.getWidth());
-		} else {
-			curSprite.setX(newX);
+			newX = level_width - curSprite.getWidth();
 		}
 		if (newY < 0) {
-			curSprite.setY(0.0f);
+			newY = 0.0f;
 		} else if (newY + curSprite.getHeight() > level_height) {
-			curSprite.setY(level_height - curSprite.getHeight());
-		} else {
-			curSprite.setY(newY);
+			newY = level_height - curSprite.getHeight();
 		}
 		
-		// If not snap to grid, done.
-		if (!snapToGrid) {
-			return;
+		// Adjust if snapping to grid.
+		if (snapToGrid) {
+			newX = newX - newX % GRID_SPACING;
+			newY = newY - newY % GRID_SPACING;
 		}
-		
-		// Snap to grid.
-		float curx = curSprite.getX();
-		float cury = curSprite.getY();		
-		curSprite.setX(curx - curx % GRID_SPACING);
-		curSprite.setY(cury - cury % GRID_SPACING);
+		curSprite.setPosition(newX, newY);
 	}
 	
 	private void renderSprites(Camera c) {
@@ -383,9 +388,11 @@ public class LevelEditor implements Screen {
 				case NEXT_SPRITE:
 					newx = curSprite.getX();
 					newy = curSprite.getY();
+//					System.out.println("prev x/y: " + newx + "/" + newy);
 					curSpriteNum  = (curSpriteNum + 1) % (sprites.size - 1);
 					curSprite = sprites.get(curSpriteNum);
 					curSpriteSetPosition(newx, newy);
+//					System.out.println("new x/y: " + curSprite.getX() + "/" + curSprite.getY());
 					break;
 				case PREVIOUS_SPRITE:
 					newx = curSprite.getX();

@@ -2,6 +2,8 @@
 
 ## Features
 
+
+
 ### 09/20/2013
  * rewrote input management again; supports control and/or shift modifiers for keys and scrolling.
  * added toogle grid lines (G)
@@ -9,7 +11,7 @@
  * changed keyboard based active sprite movement to "press" rather than "press-and-hold"; also changed to 1px adjustments for pixel-perfect nudging
  * implemented mouse functionality (move to move current sprite, click to place it)
 	 * note that the mouse also behavs according to the snap-to-grid setting (T). So, zoom in and turn off snap-to-grid for pixel perfect adjustments with your mouse!
- * biggest remaining issue: sprite whitespace...
+ * fixed the motherfucking whitespace finally jesus christ god damn.
 
 ### 09/19/2013
  * rewrote input management to support key and action descriptions, PRESS/HOLD keys, additional layers of (possibly useless) abstraction (check/display key mappings, ...)
