@@ -1,34 +1,40 @@
-package com.mortrag.ut.wasabi;
+package leveleditor;
 
 import java.util.Iterator;
 
-import sun.java2d.pipe.Region;
+import testchamber.TestChamber;
 
-import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.graphics.Pixmap;
-import com.badlogic.gdx.graphics.Pixmap.Format;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
-import com.badlogic.gdx.graphics.g2d.BitmapFont.HAlignment;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasRegion;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
+import com.badlogic.gdx.maps.Map;
+import com.badlogic.gdx.maps.MapLayer;
+import com.badlogic.gdx.maps.MapLayers;
+import com.badlogic.gdx.maps.MapObjects;
+import com.badlogic.gdx.maps.MapProperties;
+import com.badlogic.gdx.maps.objects.TextureMapObject;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
+import com.mortrag.ut.wasabi.WasabiGame;
+import com.mortrag.ut.wasabi.graphics.Common;
+import com.mortrag.ut.wasabi.graphics.WasabiTextureMapObject;
 import com.mortrag.ut.wasabi.input.Command;
 import com.mortrag.ut.wasabi.input.Controls;
 import com.mortrag.ut.wasabi.input.WasabiInput;
 import com.mortrag.ut.wasabi.input.WasabiInput.MouseState;
+import com.mortrag.ut.wasabi.util.Constants;
 import com.mortrag.ut.wasabi.util.Debug;
 
 public class LevelEditor implements Screen {
@@ -36,16 +42,16 @@ public class LevelEditor implements Screen {
 	// --------------------------------------------------------------------------------------------
 	// CONSTANTS
 	// --------------------------------------------------------------------------------------------
+	// public
+	public static final String NAME = "Level Editor";
+	
+	// private
 	private static final int GRID_SPACING = 20;
 	private static final float ZOOM_DELTA = 0.02f;
 	private static final float ZOOM_LIMIT = 0.1f;
 	private static final float CAM_MOVE_SPEED = 5.0f;
 	private static final float SPRITE_MOVE_SPEED = 1.0f; // for pixel-perfect nudging
-
 	private static final float MAIN_VIEWPORT_WIDTH_FRAC = 0.75f; 
-	
-	private static final float TEXT_MARGIN = 10.0f; // spacing we give b/w "paused" and commands.
-	
 
 	// --------------------------------------------------------------------------------------------
 	// MEMBERS
@@ -55,11 +61,10 @@ public class LevelEditor implements Screen {
 	private Texture texture;
 	private SpriteBatch batch;
 	private Array<Sprite> sprites, placedSprites;
-	private Sprite curSprite, pauseSprite;
+	private Array<Integer> placedSpriteIdxes;
+	private Sprite curSprite;
 	private int curSpriteNum;
 	private ShapeRenderer shapeRenderer;
-	private BitmapFont fpsFont, pausedFont, controlsFont;
-	private String pausedText = "THIS SHIT'S PAUSED";
 	
 	// Viewports, Cameras, Window sizes
 	private Rectangle overall_viewport, main_viewport, minimap_viewport, detail_viewport;
@@ -68,7 +73,7 @@ public class LevelEditor implements Screen {
 	float w, h, level_width, level_height, main_width, minimap_height;		
 	
 	// Game, input, controls, commands
-	private Game game;
+	private WasabiGame game;
 	private WasabiInput input;
 	private Controls controls;
 	private Array<Command> commandList;
@@ -84,7 +89,7 @@ public class LevelEditor implements Screen {
 	// CONSTRUCTORS
 	// --------------------------------------------------------------------------------------------
 
-	public LevelEditor(Game game, WasabiInput input) {
+	public LevelEditor(WasabiGame game, WasabiInput input) {
 		this.game = game;
 		this.input = input;
 
@@ -127,6 +132,7 @@ public class LevelEditor implements Screen {
 		atlas = new TextureAtlas(Gdx.files.internal("../wasabi-android/assets/wasabi-atlas.atlas"));
 		sprites = getSpritesFromAtlas(atlas); // atlas.createSprites();
 		placedSprites = new Array<Sprite>();
+		placedSpriteIdxes = new Array<Integer>();
 		curSpriteNum = 0;
 		curSprite = sprites.get(curSpriteNum);
 		//TextureAtlas.AtlasSprite as = (TextureAtlas.AtlasSprite) curSprite;
@@ -137,31 +143,12 @@ public class LevelEditor implements Screen {
 		// Bit shapes
 		// -----------------------------------------------------------------------------------------
 		shapeRenderer = new ShapeRenderer();
-		// precompute pause overlay into sprite
-		Pixmap pixmap = new Pixmap( (int)w, (int)h, Format.RGBA8888 );
-		pixmap.setColor( 0f, 0.5f, 1f, 0.8f );
-		pixmap.fillRectangle(0, 0, (int)w, (int)h);
-		Texture pixmaptex = new Texture( pixmap );
-		pixmap.dispose();
-		pauseSprite = new Sprite(pixmaptex, (int)w, (int)h);
-		pauseSprite.setPosition(0.0f, 0.0f);
-		fpsFont = new BitmapFont();
-		fpsFont.setColor(Color.BLACK);
-		fpsFont.setScale(1.2f);
-		pausedFont = new BitmapFont();
-		pausedFont.setColor(Color.GRAY);
-		pausedFont.setScale(10.0f);
-		controlsFont = new BitmapFont();
-		controlsFont.setColor(Color.WHITE);
-		controlsFont.setScale(1.2f);
-		
+
 		
 		// Input
 		// -----------------------------------------------------------------------------------------
 		commandList = new Array<Command>();
 		controls = new LevelEditor_Controls();
-		mouseState = input.setControls(controls, commandList);
-		Gdx.input.setInputProcessor(input);
 		mouseStateUnprojected = new Vector3();
 	}
 	
@@ -173,15 +160,62 @@ public class LevelEditor implements Screen {
 	// TODO(max): UPDATE ALL CALLS AND DOCUMENTATION!
 	
 	/**
+	 * Saves current map and switches screen to test chamber.
+	 */
+	private void testMap() {		
+		// Save stuff in a map! Right now just very simple (one layer).
+		Map map = new Map();
+		MapLayers mapLayers = map.getLayers();
+		MapLayer mapLayer = new MapLayer();
+		MapObjects mapObjects = mapLayer.getObjects();
+		Array<AtlasRegion> regions = atlas.getRegions();
+		for (int i = 0; i < placedSpriteIdxes.size; i++) {
+			Sprite sprite = placedSprites.get(i);
+			TextureRegion textureRegion = regions.get(placedSpriteIdxes.get(i));
+			TextureMapObject wasabiTextureMapObject = new WasabiTextureMapObject(textureRegion,
+					sprite.getX(), sprite.getY(), sprite.getWidth(), sprite.getHeight());
+			mapObjects.add(wasabiTextureMapObject);
+		}
+		mapLayers.add(mapLayer);
+		// MapProperties are important
+		MapProperties mapProperties = map.getProperties();
+		mapProperties.put(Constants.MP.LEVEL_WIDTH, level_width);
+		mapProperties.put(Constants.MP.LEVEL_HEIGHT, level_height);		
+		
+		
+		// Load the test chamber if it hasn't been loaded, or update it.
+		TestChamber testChamber = null;
+		if (!game.screenLoaded(TestChamber.NAME)) {
+			// Screen hasn't been loaded--make it!
+			testChamber = new TestChamber(game, input, map, batch, atlas);
+			game.addScreen(testChamber, TestChamber.NAME);
+		} else {
+			// screen has been loaded--just update the map!
+			testChamber = (TestChamber) game.getScreen(TestChamber.NAME);
+			testChamber.setMap(map);
+		}
+		
+		// switch
+		game.getAndSetScreen(TestChamber.NAME);
+	}
+	
+	/**
 	 * Returns sprites that KEEP THE GODDAMNED WHITESPACE STRIPPED.
 	 */
 	private Array<Sprite> getSpritesFromAtlas(TextureAtlas fullAtlas) {
 		Array<AtlasRegion> regions = fullAtlas.getRegions();
 		Array<Sprite> sprites = new Array<Sprite>(regions.size);
 		for (int i = 0; i < regions.size; i++) {
-			sprites.add(new Sprite(regions.get(i)));
+			AtlasRegion r = regions.get(i);
+			sprites.add(new Sprite(r, 0, 0, r.packedWidth, r.packedHeight));
 		}
 		return sprites;
+	}
+	
+	private void placeSprite() {
+		Sprite placedSprite = new Sprite(curSprite);
+		placedSprites.add(placedSprite);
+		placedSpriteIdxes.add(curSpriteNum);
 	}
 	
 	/**
@@ -190,8 +224,7 @@ public class LevelEditor implements Screen {
 	 */
 	private void handleCursorPressed() {
 		// main window functionality
-		Sprite placedSprite = new Sprite(curSprite);
-		placedSprites.add(placedSprite);
+		placeSprite();
 	}
 	
 	/**
@@ -261,31 +294,6 @@ public class LevelEditor implements Screen {
 			curSprite.draw(batch);
 		}
 		batch.end();
-	}
-	
-	private void displayFps(Camera c) {
-		batch.setProjectionMatrix(c.combined);
-		batch.begin();
-		fpsFont.draw(batch, "FPS: " + Gdx.graphics.getFramesPerSecond(), 0.0f, h);
-		batch.end();
-	}
-	
-	private void drawPauseOverlay(Camera c) {		
-		batch.setProjectionMatrix(c.combined);
-		batch.begin();
-		
-		// pixmap!?		
-		pauseSprite.draw(batch);
-
-		// draw paused txt
-		pausedFont.drawWrapped(batch, pausedText, 0.0f, h, w, HAlignment.CENTER);
-		float pausedTxtHeight = pausedFont.getBounds(pausedText).height;
-		
-		// draw controls
-		controlsFont.drawWrapped(batch, controls.getControlsList(), 0.0f, h - pausedTxtHeight -
-				TEXT_MARGIN, w);
-		
-		batch.end();		
 	}
 
 	private void drawEditorLines(Camera c) {
@@ -402,8 +410,7 @@ public class LevelEditor implements Screen {
 					curSpriteSetPosition(newx, newy);
 					break;					
 				case PLACE_SPRITE:
-					Sprite placedSprite = new Sprite(curSprite);
-					placedSprites.add(placedSprite);
+					placeSprite();
 					break;
 				case TOGGLE_GRID:
 					drawGridlines = !drawGridlines;
@@ -416,6 +423,9 @@ public class LevelEditor implements Screen {
 					break;
 				case PRESS_DOWN:
 					handleCursorPressed();
+					break;
+				case TEST_MAP:
+					testMap();
 					break;
 				default:
 					// Do nothing.
@@ -470,10 +480,10 @@ public class LevelEditor implements Screen {
 		
 		// paused overlay
 		if (paused) {
-			drawPauseOverlay(overall_cam);
+			Common.drawPauseOverlay(overall_cam, batch, controls.getControlsList());
 		}
 		if (Debug.DEBUG) {
-			displayFps(overall_cam);
+			Common.displayFps(overall_cam, batch);
 		}
 	}
 	
@@ -491,7 +501,7 @@ public class LevelEditor implements Screen {
 		overall_viewport.height = h;
 		overall_cam.viewportWidth = w;
 		overall_cam.viewportHeight = h;
-		overall_cam.position.mul(0.0f);
+		overall_cam.position.scl(0.0f);
 		overall_cam.translate(w / 2.0f, h / 2.0f, 0.0f);
 
 		// reconfig main viewport/cam
@@ -500,7 +510,7 @@ public class LevelEditor implements Screen {
 		main_viewport.height = h;
 		main_cam.viewportWidth = main_width;
 		main_cam.viewportHeight = h;
-		main_cam.position.mul(0.0f);
+		main_cam.position.scl(0.0f);
 		main_cam.translate(main_width / 2.0f, h / 2.0f, 0.0f);
 
 		// reconfig minimap viewport/ cam
@@ -510,7 +520,7 @@ public class LevelEditor implements Screen {
 		minimap_viewport.width = w - main_width;
 		minimap_viewport.height = minimap_height;
 		//minimap_cam = new OrthographicCamera(level_width, level_height);
-		minimap_cam.position.mul(0.0f);
+		minimap_cam.position.scl(0.0f);
 		minimap_cam.translate(level_width / 2.0f, level_height / 2.0f, 0.0f);
 
 		// reconfig detail viewport / cam
@@ -523,14 +533,13 @@ public class LevelEditor implements Screen {
 
 	@Override
 	public void show() {
-		// TODO Auto-generated method stub
-
+		mouseState = input.setControls(controls, commandList);
 	}
 
 	@Override
 	public void hide() {
-		// TODO Auto-generated method stub
-
+		// TODO(max): Do we need to revoke the controls here?
+		//            Do we need to do anything else here?
 	}
 
 	@Override

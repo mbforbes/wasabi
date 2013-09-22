@@ -18,12 +18,11 @@ public class WasabiInput implements InputProcessor {
 	public class MouseState {
 		public int x;
 		public int y;
-	}	
+	}
 	
 	public WasabiInput() {
 		activeKeyModifier = KeyModifier.NONE;
 		mouseState = new MouseState();
-		
 	}
 	
 	public MouseState setControls(Controls controls, Array<Command> commandList) {

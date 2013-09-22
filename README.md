@@ -3,6 +3,13 @@
 ## Features
 
 
+### 09/21/2013
+ * Actually fixed whitespace. Mostly. (Cooper should check out column sprites...)
+ * Updated libGDX to latest nightly (includes maps objects)
+ * Implemented Screen-switching and added switch-to-test-chamber functionality (X)
+ * Added map saving (map + layers + objects)
+ * Implemented barebones test chamber (loads maps, renders)
+ * Added basic hero with animation map for actions, basic movement
 
 ### 09/20/2013
  * rewrote input management again; supports control and/or shift modifiers for keys and scrolling.
