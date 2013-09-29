@@ -10,6 +10,7 @@
  * Implemented hero movement logic for the above four interfaces.
  * Implemented basic physics (gravity, movement accelerations, collisions, friction)
  * Added left-facing animation rendering.
+ * Cleaned up some leftover files (mainly orthographic camera demo + map)
 
 ### 09/21/2013
  * Actually fixed whitespace. Mostly. (Cooper should check out column sprites...)
