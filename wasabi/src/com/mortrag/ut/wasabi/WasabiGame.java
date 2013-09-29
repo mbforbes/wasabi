@@ -3,13 +3,12 @@ package com.mortrag.ut.wasabi;
 import java.util.HashMap;
 import java.util.Map;
 
-import leveleditor.LevelEditor;
-
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.mortrag.ut.wasabi.input.WasabiInput;
+import com.mortrag.ut.wasabi.leveleditor.LevelEditor;
 
 public class WasabiGame extends Game implements ApplicationListener {
 

@@ -1,4 +1,4 @@
-package leveleditor;
+package com.mortrag.ut.wasabi.leveleditor;
 
 import com.badlogic.gdx.Input.Keys;
 import com.mortrag.ut.wasabi.input.Controls;

@@ -1,4 +1,4 @@
-package testchamber;
+package com.mortrag.ut.wasabi.testchamber;
 
 import com.mortrag.ut.wasabi.input.Command;
 

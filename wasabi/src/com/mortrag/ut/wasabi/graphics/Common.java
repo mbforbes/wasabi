@@ -13,6 +13,8 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont.HAlignment;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.utils.Array;
+import com.mortrag.ut.wasabi.util.Constants;
+import com.mortrag.ut.wasabi.util.Debug;
 
 public class Common {	
 	
@@ -20,7 +22,7 @@ public class Common {
 	private static final float TEXT_MARGIN = 10.0f; // spacing we give b/w "paused" and commands.
 	private static final int ANIMATION_START_NUM = 0; // how Cooper numbers animations
 	
-	private static final BitmapFont fpsFont = makeFont(Color.BLACK, 1.2f), pausedFont =
+	private static final BitmapFont debugFont = makeFont(Color.BLACK, 1.2f), pausedFont =
 			makeFont(Color.GRAY, 10.0f), controlsFont = makeFont(Color.WHITE, 1.2f);
 	private static float w = Gdx.graphics.getWidth(), h = Gdx.graphics.getHeight();	
 	private static Sprite pauseOverlaySprite = makePauseOverlaySprite();
@@ -85,10 +87,15 @@ public class Common {
 	 * @param c
 	 */
 	public static void displayFps(Camera camera, SpriteBatch batch) {
+		// Append FPS; get & clear the debug buffer.
+		Debug.debugText.append("FPS: " + Gdx.graphics.getFramesPerSecond());
+		String debugStr = Debug.debugText.toString();
+		Debug.debugText.delete(0, Debug.debugText.length());
+		
 		batch.setProjectionMatrix(camera.combined);
 		batch.begin();
-		fpsFont.draw(batch, "FPS: " + Gdx.graphics.getFramesPerSecond(), 0.0f,
-				Gdx.graphics.getHeight());
+		debugFont.drawWrapped(batch, debugStr, 0.0f, Gdx.graphics.getHeight(),
+				Gdx.graphics.getWidth(), HAlignment.LEFT);
 		batch.end();
 	}	
 	

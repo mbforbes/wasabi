@@ -1,8 +1,6 @@
-package leveleditor;
+package com.mortrag.ut.wasabi.leveleditor;
 
 import java.util.Iterator;
-
-import testchamber.TestChamber;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
@@ -26,6 +24,7 @@ import com.badlogic.gdx.maps.MapProperties;
 import com.badlogic.gdx.maps.objects.TextureMapObject;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.Array;
 import com.mortrag.ut.wasabi.WasabiGame;
 import com.mortrag.ut.wasabi.graphics.Common;
@@ -34,6 +33,7 @@ import com.mortrag.ut.wasabi.input.Command;
 import com.mortrag.ut.wasabi.input.Controls;
 import com.mortrag.ut.wasabi.input.WasabiInput;
 import com.mortrag.ut.wasabi.input.WasabiInput.MouseState;
+import com.mortrag.ut.wasabi.testchamber.TestChamber;
 import com.mortrag.ut.wasabi.util.Constants;
 import com.mortrag.ut.wasabi.util.Debug;
 

@@ -1,4 +1,4 @@
-package testchamber;
+package com.mortrag.ut.wasabi.testchamber;
 
 import java.util.Iterator;
 
@@ -11,6 +11,8 @@ import com.badlogic.gdx.maps.MapRenderer;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Rectangle;
 import com.mortrag.ut.wasabi.graphics.WasabiTextureMapObject;
+import com.mortrag.ut.wasabi.util.Constants;
+import com.mortrag.ut.wasabi.util.Debug;
 
 public class TestChamber_MapRenderer implements MapRenderer {
 
@@ -40,7 +42,13 @@ public class TestChamber_MapRenderer implements MapRenderer {
 		}		
 	}
 	
-	private void renderObject(MapObject mapObject) {
+	/**
+	 * 
+	 * @param mapObject
+	 * @return how many objects were rendered
+	 */
+	private int renderObject(MapObject mapObject) {
+		int rendered = 0;
 		if (mapObject instanceof WasabiTextureMapObject) {
 			WasabiTextureMapObject obj = (WasabiTextureMapObject) mapObject;
 			float objx = obj.getX();
@@ -50,11 +58,13 @@ public class TestChamber_MapRenderer implements MapRenderer {
 			// Only draw if some part of it will be displayed on the screen.
 			if (!(objx + objw < leftedge || objx > rightedge || objy > topedge ||
 					objy + objh < bottomedge)) {
-				spriteBatch.draw(obj.getTextureRegion(), obj.getX(), obj.getY());	
+				spriteBatch.draw(obj.getTextureRegion(), obj.getX(), obj.getY());
+				rendered++;
 			}
 		} else {
 			// Not rendering anything else for now...
 		}
+		return rendered;
 	}
 	
 	@Override
@@ -91,16 +101,19 @@ public class TestChamber_MapRenderer implements MapRenderer {
 	public void render(int[] layers) {
 		spriteBatch.begin();
 		Iterator<MapLayer> lit = map.getLayers().iterator();
+		int rendered = 0, total = 0;
 		while (lit.hasNext()) {
 			MapLayer layer = lit.next();
 			if (layer.isVisible()) {
 				Iterator<MapObject> oit = layer.getObjects().iterator();
+				total += layer.getObjects().getCount();
 				while (oit.hasNext()) {
 					MapObject mapObject = oit.next();
-					renderObject(mapObject);
+					rendered += renderObject(mapObject);
 				}
 			}
 		}
 		spriteBatch.end();
+		Debug.debugText.append("Rendered " + rendered + " / " + total + " objects" + Constants.NL);
 	}
 }

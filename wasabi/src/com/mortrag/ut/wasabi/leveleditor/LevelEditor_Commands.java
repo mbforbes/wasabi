@@ -1,4 +1,4 @@
-package leveleditor;
+package com.mortrag.ut.wasabi.leveleditor;
 
 import com.mortrag.ut.wasabi.input.Command;
 

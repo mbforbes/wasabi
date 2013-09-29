@@ -2,6 +2,14 @@
 
 ## Features
 
+### 09/28/2013
+ * Added debug count of objects drawn
+ * Added hero debug info (position, velocity, acceleration, on ground?)
+ * Implemented level-border collision detection
+ * Added generic Advect-able, Physics-able, Input-able, and Collide-able interfaces.
+ * Implemented hero movement logic for the above four interfaces.
+ * Implemented basic physics (gravity, movement accelerations, collisions, friction)
+ * Added left-facing animation rendering.
 
 ### 09/21/2013
  * Actually fixed whitespace. Mostly. (Cooper should check out column sprites...)
