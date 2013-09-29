@@ -176,9 +176,10 @@ public class Hero implements Inputable, Collidable, Physicsable, Advectable {
 				setAction(Action.IDLE);
 		}
 		
-		// If not running, make idle.
-		if (getOnGround() && !(inputs.contains(Input.LEFT, true) ||
-				inputs.contains(Input.RIGHT, true))) {
+		// If on ground and not pressing exactly one of {LEFT, RIGHT}, make idle.
+		boolean pressLeft = inputs.contains(Input.LEFT, true);
+		boolean pressRight = inputs.contains(Input.RIGHT, true);
+		if (getOnGround() && !(pressLeft ^ pressRight)) {
 			setAction(Action.IDLE);
 		}
 	}

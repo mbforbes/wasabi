@@ -41,6 +41,13 @@ public class WasabiInput implements InputProcessor {
 		}
 	}
 	
+	/**
+	 * Good to call in show() to clean up any left-over state.
+	 */
+	public void clearAll() {
+		this.commandList.clear();
+	}
+	
 	private boolean isShift(int keycode) {
 		return keycode == Keys.SHIFT_LEFT || keycode == Keys.SHIFT_RIGHT;
 	}

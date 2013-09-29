@@ -372,6 +372,7 @@ public class TestChamber implements Screen {
 	@Override
 	public void show() {
 		mouseState = input.setControls(controls, commandList);
+		input.clearAll();
 	}
 
 	@Override
