@@ -97,8 +97,8 @@ public class LevelEditor implements Screen {
 		h = Gdx.graphics.getHeight();
 
 		// TODO(max): Set these in config.
-		level_width = 20000;
-		level_height = 1500;
+		level_width = 5000;
+		level_height = 5000;
 
 		// Viewports are areas of the java window that have stuff rendered in them.
 		// Cameras project things to viewports. They can be zoomed and moved.

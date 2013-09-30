@@ -53,7 +53,7 @@ public class TestChamber implements Screen {
 	private WasabiGame game;
 	
 	// Cameras and Viewports	
-	private Camera camera;
+	private Camera mainCam, overallCam;
 	// currently just have one viewport that is the size of the screen	
 	private Rectangle mainViewport; 
 	// do we need the level w/h? surely...
@@ -109,13 +109,16 @@ public class TestChamber implements Screen {
 		screenWidth = Gdx.graphics.getWidth();
 		screenHeight = Gdx.graphics.getHeight();
 		mainViewport = new Rectangle(0, 0, screenWidth, screenHeight);
-		camera = new OrthographicCamera(screenWidth, screenHeight);
-		camera.translate(screenWidth/ 2.0f, screenHeight / 2.0f, 0.0f);
-		camera.update();
+		mainCam = new OrthographicCamera(screenWidth, screenHeight);
+		mainCam.translate(screenWidth/ 2.0f, screenHeight / 2.0f, 0.0f);
+		mainCam.update();
+		overallCam = new OrthographicCamera(screenWidth, screenHeight);
+		overallCam.translate(screenWidth/ 2.0f, screenHeight / 2.0f, 0.0f);
+		overallCam.update();
 		controls = new TestChamber_Controls();
 		commandList = new Array<Command>();
 		mapRenderer = new TestChamber_MapRenderer(map, batch);
-		mapRenderer.setView((OrthographicCamera) camera);
+		mapRenderer.setView((OrthographicCamera) mainCam);
 		hero = new Hero(100f, 100f, 140f, 140f); // TODO(max): Figure out w/h automatically.
 		addAnimationsToHero();
 		
@@ -375,7 +378,6 @@ public class TestChamber implements Screen {
 	// ---------------------------------------------------------------------------------------------	
 	@Override
 	public void render(float delta) {
-		
 		// Input!
 		handleCommands();
 		
@@ -404,7 +406,18 @@ public class TestChamber implements Screen {
 		gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 		
 		// Update cameras!
-		camera.update();
+		// Main cam:
+		Vector2 heroP = hero.getP();
+		Vector3 camPos = mainCam.position;
+		mainCam.translate(-camPos.x + heroP.x,
+				-camPos.y + heroP.y + Constants.HERO_CAM_OFFSET_Y,
+				0.0f);
+		mainCam.update();
+		batch.setProjectionMatrix(mainCam.combined);
+		Debug.debugText.append("Camera pos: " + mainCam.position + Constants.NL);
+		
+		// Overall (e.g. debug, pause) cam
+		overallCam.update();
 		
 		// We're doin' the main viewport.
 		gl.glViewport((int) mainViewport.x, (int) mainViewport.y, (int) mainViewport.width,
@@ -418,10 +431,10 @@ public class TestChamber implements Screen {
 		
 		// Paused overlay
 		if (paused) {
-			Common.drawPauseOverlay(camera, batch, controls.getControlsList());
+			Common.drawPauseOverlay(overallCam, batch, controls.getControlsList());
 		}
 		if (Debug.DEBUG) {
-			Common.displayFps(camera, batch);
+			Common.displayFps(overallCam, batch);
 		}
 	}
 
@@ -432,15 +445,15 @@ public class TestChamber implements Screen {
 		screenHeight = Gdx.graphics.getHeight();
 		mainViewport.width = screenWidth;
 		mainViewport.height = screenHeight;
-		camera.viewportWidth = screenWidth;
-		camera.viewportHeight = screenHeight;
-		camera.position.scl(0.0f);
+		mainCam.viewportWidth = screenWidth;
+		mainCam.viewportHeight = screenHeight;
+		mainCam.position.scl(0.0f);
 		// TODO(max): Probably don't want to do this (should set camera position to what it was
 		// before if it changed... in fact, maybe this isn't necessary at all?).
-		camera.translate(screenWidth/ 2.0f, screenHeight / 2.0f, 0.0f);	
+		mainCam.translate(screenWidth/ 2.0f, screenHeight / 2.0f, 0.0f);	
 		
-		camera.update();
-		mapRenderer.setView((OrthographicCamera) camera);
+		mainCam.update();
+		mapRenderer.setView((OrthographicCamera) mainCam);
 	}
 
 	@Override

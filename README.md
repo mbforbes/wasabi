@@ -3,7 +3,8 @@
 ## Features
 
 ### 09/29/2013
- * Basic, buggy all-object collision-detection implemented
+ * Implemented basic, buggy all-object collision detection
+ * Implemented basic camera movement during level
 
 ### 09/28/2013
  * Added debug count of objects drawn
