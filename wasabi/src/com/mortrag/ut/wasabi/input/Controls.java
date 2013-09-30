@@ -3,7 +3,6 @@ package com.mortrag.ut.wasabi.input;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.badlogic.gdx.Input;
 import com.badlogic.gdx.utils.Array;
 import com.mortrag.ut.wasabi.util.Constants;
 
@@ -163,9 +162,10 @@ public abstract class Controls {
 	// CONSTRUCTORS
 	// ------------------------------------------------------------------------------	
 	
+	@SuppressWarnings("unchecked")
 	public Controls() {
 		// Key command maps
-		keyCommandMaps = new Map[KeyModifier.NUM_MODIFIERS];
+		keyCommandMaps = (Map<Integer, Command>[]) new Map[KeyModifier.NUM_MODIFIERS];
 		for (int mod = 0; mod < KeyModifier.NUM_MODIFIERS; mod++) {
 			keyCommandMaps[mod] = new HashMap<Integer, Command>();
 		}

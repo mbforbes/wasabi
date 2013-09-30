@@ -33,7 +33,7 @@ import com.mortrag.ut.wasabi.graphics.WasabiTextureMapObject;
 import com.mortrag.ut.wasabi.input.Command;
 import com.mortrag.ut.wasabi.input.Controls;
 import com.mortrag.ut.wasabi.input.WasabiInput;
-import com.mortrag.ut.wasabi.input.WasabiInput.MouseState;
+//import com.mortrag.ut.wasabi.input.WasabiInput.MouseState;
 import com.mortrag.ut.wasabi.leveleditor.LevelEditor;
 import com.mortrag.ut.wasabi.util.Constants;
 import com.mortrag.ut.wasabi.util.Debug;
@@ -62,13 +62,12 @@ public class TestChamber implements Screen {
 	// Graphics
 	private SpriteBatch batch;
 	private TextureAtlas atlas;
-	private Animation wasabiRunAnimation;
 	
 	// Input
 	private WasabiInput input;
 	private Controls controls;
 	private Array<Command> commandList;
-	private MouseState mouseState;
+	//private MouseState mouseState;
 	
 	// Map
 	private Map map;
@@ -458,7 +457,7 @@ public class TestChamber implements Screen {
 
 	@Override
 	public void show() {
-		mouseState = input.setControls(controls, commandList);
+		//mouseState = input.setControls(controls, commandList);
 		input.clearAll();
 	}
 

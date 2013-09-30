@@ -13,7 +13,6 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont.HAlignment;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.utils.Array;
-import com.mortrag.ut.wasabi.util.Constants;
 import com.mortrag.ut.wasabi.util.Debug;
 
 public class Common {	
