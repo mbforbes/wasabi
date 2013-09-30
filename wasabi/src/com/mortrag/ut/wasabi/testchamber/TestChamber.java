@@ -119,7 +119,7 @@ public class TestChamber implements Screen {
 		commandList = new Array<Command>();
 		mapRenderer = new TestChamber_MapRenderer(map, batch);
 		mapRenderer.setView((OrthographicCamera) mainCam);
-		hero = new Hero(100f, 100f, 140f, 140f); // TODO(max): Figure out w/h automatically.
+		hero = new Hero(100f, 100f, 105f, 100f); // TODO(max): Figure out w/h automatically.
 		addAnimationsToHero();
 		
 		// collections
