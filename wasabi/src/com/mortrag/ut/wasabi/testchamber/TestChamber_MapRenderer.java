@@ -27,8 +27,6 @@ public class TestChamber_MapRenderer implements MapRenderer {
 		setMap(map);
 		this.spriteBatch = spriteBatch;
 		viewBounds = new Rectangle(); 
-		
-
 	}
 	
 	public void setMap(Map map) {

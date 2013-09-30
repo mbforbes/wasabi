@@ -91,7 +91,6 @@ public class TestChamber implements Screen {
 	private Array<BoundingBox> boundaries;
 	
 	// Avoid GC!
-	private Vector2 prevP = new Vector2();
 	
 	// ---------------------------------------------------------------------------------------------
 	// CONSTRUCTORS
@@ -117,7 +116,7 @@ public class TestChamber implements Screen {
 		commandList = new Array<Command>();
 		mapRenderer = new TestChamber_MapRenderer(map, batch);
 		mapRenderer.setView((OrthographicCamera) camera);
-		hero = new Hero(100f, 0f, 140f, 140f); // TODO(max): Figure out w/h automatically.
+		hero = new Hero(100f, 100f, 140f, 140f); // TODO(max): Figure out w/h automatically.
 		addAnimationsToHero();
 		
 		// collections
@@ -134,24 +133,10 @@ public class TestChamber implements Screen {
 		advectables = new Array<Advectable>();
 		advectables.add(hero);
 		
-		// map collision layers
 		boundaries = new Array<BoundingBox>();
-		Iterator<MapLayer> lit = map.getLayers().iterator();		
-		while (lit.hasNext()) {
-			MapLayer layer = lit.next();
-			if ((Boolean) layer.getProperties().get(Constants.MP.COLLIDABLE)) {
-				addBoundingBoxes(layer, boundaries);
-			}
-		}
-		// add level bounding boxes
-		boundaries.add(new BoundingBox(new Vector3(0.0f, -1.0f, 0.0f),
-				new Vector3(levelWidth, 0.0f, 0.0f))); // bottom
-//		boundaries.add(new BoundingBox(new Vector3(-1.0f, 0.0f, 0.0f),
-//				new Vector3(0.0f, levelHeight, 0.0f))); // left
-//		boundaries.add(new BoundingBox(new Vector3(0.0f, levelHeight, 0.0f),
-//				new Vector3(levelWidth, levelHeight + 1.0f, 0.0f))); // top
-//		boundaries.add(new BoundingBox(new Vector3(levelWidth, 0.0f, 0.0f),
-//				new Vector3(levelWidth + 1.0f, levelHeight, 0.0f))); // right
+		
+		// map collision layers
+		updateBoundingBoxes();
 	}
 	
 	// ---------------------------------------------------------------------------------------------
@@ -164,14 +149,35 @@ public class TestChamber implements Screen {
 		levelWidth = (Float) mapProperties.get(Constants.MP.LEVEL_WIDTH);
 		levelHeight = (Float) mapProperties.get(Constants.MP.LEVEL_HEIGHT);
 		mapRenderer.setMap(map);
+		updateBoundingBoxes();
 	}
 	
 	// ---------------------------------------------------------------------------------------------
 	// PRIVATE
 	// ---------------------------------------------------------------------------------------------
 	
+	private void updateBoundingBoxes() {
+		boundaries.clear();
+		Iterator<MapLayer> lit = map.getLayers().iterator();		
+		while (lit.hasNext()) {
+			MapLayer layer = lit.next();
+			if ((Boolean) layer.getProperties().get(Constants.MP.COLLIDABLE)) {
+				addBoundingBoxes(layer, boundaries);
+			}
+		}
+		// add level bounding boxes
+		boundaries.add(new BoundingBox(new Vector3(0.0f, -1.0f, 0.0f),
+				new Vector3(levelWidth, 0.0f, 0.0f))); // bottom
+		boundaries.add(new BoundingBox(new Vector3(-1.0f, 0.0f, 0.0f),
+				new Vector3(0.0f, levelHeight, 0.0f))); // left
+		boundaries.add(new BoundingBox(new Vector3(0.0f, levelHeight, 0.0f),
+				new Vector3(levelWidth, levelHeight + 1.0f, 0.0f))); // top
+		boundaries.add(new BoundingBox(new Vector3(levelWidth, 0.0f, 0.0f),
+				new Vector3(levelWidth + 1.0f, levelHeight, 0.0f))); // right
+	}
+	
 	private void addAnimationsToHero() {
-		hero.animations.put(Action.RUN, new Animation(0.1f, Common.getFrames(atlas, "s_wasRun"),
+		hero.animations.put(Action.RUN, new Animation(0.07f, Common.getFrames(atlas, "s_wasRun"),
 				Animation.LOOP));
 		hero.animations.put(Action.JUMP, new Animation(0.1f, Common.getFrames(atlas, "s_wasJump"),
 				Animation.NORMAL));
@@ -272,66 +278,75 @@ public class TestChamber implements Screen {
 	}
 	
 	private void advectWithCollisions(float delta) {
-		// TODO(max): Turn objects into collision surfaces.
-
+		// debug info
+		Debug.debugText.append("Num collision boundaries: " + boundaries.size + Constants.NL);
+		
 		Iterator<Advectable> ait = advectables.iterator();
 		while (ait.hasNext()) {
 			Advectable adv = ait.next();
 			Vector2 a = adv.getA();
 			Vector2 v = adv.getV();
 			Vector2 p = adv.getP();
-			prevP.set(p);
-			
+
 			// move first. most vector2 methods mutate the objects, so we explicitly do this.
 			a.scl(delta); 
 			v.add(a);
 			v.scl(delta);			
-			p.add(v); // set now so bounding box wil be updated; will correct if collisions
 			
 			// then handle collisions, if it's going to collide (double check)
 			if (adv.collides() && adv instanceof Collidable) {
+				// NOTE(max): pbb (prevBoundingBox) is useless as soon as the position changes!!! So
+				// we extract and save what we care about in locals.
+				BoundingBox pbb = ((Collidable) adv).getBoundingBox();
+				float prevMinX = pbb.min.x, prevMinY = pbb.min.y, prevMaxX = pbb.max.x,
+						prevMaxY = pbb.max.y;
+				
+				p.add(v); // set now so bounding box wil be updated; will correct if collisions
+				
 				//boolean hitGround = false;
-				boolean collided = false;
-				BoundingBox objBox = ((Collidable) adv).getBoundingBox();
+				boolean onGround = false;
+				
 				// TODO(max): Can easily optimize. See ETH ref'd site, or just do level zones.
 				Iterator<BoundingBox> bit = boundaries.iterator();
 				while (bit.hasNext()) {
+					// Need to recompute object bounding box in case it changes. Probably shouldn't
+					// actually do this for every other object but...
+					BoundingBox objBox = ((Collidable) adv).getBoundingBox();
 					BoundingBox boundary = bit.next();
 					if (objBox.intersects(boundary)) {
-//						// Figure out what kind of intersection... maybe this part means the whole
-//						// boundary box thing is useless...
-//						if (objBox.min.x <= boundary.max.x) {
-//							// collide on left
-//							p.set(boundary.max.x, p.y);
-//							v.scl(0.0f, 1.0f); // stop vx
-//						} else if (objBox.max.x >= boundary.min.x) {
-//							// collide on right
-//							p.set(p.x - (objBox.max.x - boundary.min.x), p.y);
-//							v.scl(0.0f, 1.0f); // stop vx
-//						}
-//						if (objBox.min.y <= boundary.max.y) {
-//							// collide on bottom
-//							p.set(p.x, boundary.max.y);
-//							v.scl(1.0f, 0.0f); // stop vy
-//							hitGround = true;
-//						} else if (objBox.max.y >= boundary.min.y) {
-//							// collide on top
-//							p.set(p.x, p.y - (objBox.max.y - boundary.min.y));
-//							v.scl(1.0f, 0.0f); // stop vy
-//							hitGround = true;
-//						}
-						collided = true;
+						// Figure out what kind of intersection... maybe this part means the whole
+						// boundary box thing is useless...
+						if (prevMinX >= boundary.max.x && objBox.min.x < boundary.max.x) {
+							// collide on left
+							p.set(boundary.max.x, p.y);
+							v.scl(0.0f, 1.0f); // stop vx
+						} else if (prevMaxX <= boundary.min.x && objBox.max.x > boundary.min.x) {
+							// collide on right
+							p.set(p.x - (objBox.max.x - boundary.min.x), p.y);
+							v.scl(0.0f, 1.0f); // stop vx
+						}
+						if (prevMinY >= boundary.max.y && objBox.min.y < boundary.max.y) {
+							// collide on bottom
+							p.set(p.x, boundary.max.y);
+							v.scl(1.0f, 0.0f); // stop vy
+							// NOTE: would detect the frame that the ground was first hit here.
+							onGround = true;
+						} else if (prevMaxY <= boundary.min.y && objBox.max.y > boundary.min.y) {
+							// collide on top
+							p.set(p.x, p.y - (objBox.max.y - boundary.min.y));
+							v.scl(1.0f, 0.0f); // stop vy
+						}
+						
+						// Detect (resting) on ground
+						if (objBox.min.y == boundary.max.y) {
+							onGround = true;
+						}
 					}
 				}
-				if (collided) {
-					p.set(prevP);
-				}				
-				((Collidable) adv).setOnGround(collided);
+				((Collidable) adv).setOnGround(onGround); 
+			} else {
+				p.add(v); // just move
 			}
-
-			// just reject move
-
-						
 			
 			// "reset" A and "unscale" V 
 			a.set(Vector2.Zero); // forces (accelerations) zeroed out; recomputed each step

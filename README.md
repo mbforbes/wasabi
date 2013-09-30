@@ -3,7 +3,7 @@
 ## Features
 
 ### 09/29/2013
- * Fuck collision detection
+ * Basic, buggy all-object collision-detection implemented
 
 ### 09/28/2013
  * Added debug count of objects drawn
