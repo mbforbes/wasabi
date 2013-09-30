@@ -7,7 +7,10 @@ import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.Array;
+import com.mortrag.ut.wasabi.util.Constants;
 
 public class Hero implements Inputable, Collidable, Physicsable, Advectable {
 	
@@ -32,6 +35,7 @@ public class Hero implements Inputable, Collidable, Physicsable, Advectable {
 	private float timeSinceActionStart, w, h;
 	private Vector2 p, v, a; // position, velocity, acceleration
 	public boolean onGround, collides, facingLeft;
+	private BoundingBox boundingBox; 
 
 	// ---------------------------------------------------------------------------------------------
 	// CONSTRUCTORS
@@ -51,6 +55,7 @@ public class Hero implements Inputable, Collidable, Physicsable, Advectable {
 		collides = true; // ghost mode off, lol.
 		this.w = w;
 		this.h = h;
+		boundingBox = new BoundingBox(new Vector3(), new Vector3());
 	}
 	
 	// ---------------------------------------------------------------------------------------------
@@ -182,5 +187,15 @@ public class Hero implements Inputable, Collidable, Physicsable, Advectable {
 		if (getOnGround() && !(pressLeft ^ pressRight)) {
 			setAction(Action.IDLE);
 		}
+	}
+
+	@Override
+	public BoundingBox getBoundingBox() {
+		// Avoiding creating new Vector3's each time by mucking about the internal state and then
+		// letting it clean up.
+		boundingBox.min.set(p.x, p.y, 0.0f);
+		boundingBox.max.set(p.x + w, p.y + h, Constants.BB_ZMAX);
+		boundingBox.set(boundingBox.min, boundingBox.max);
+		return boundingBox;
 	}
 }

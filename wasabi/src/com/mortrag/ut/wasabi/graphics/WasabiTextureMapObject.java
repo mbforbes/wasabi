@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.maps.objects.TextureMapObject;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
+import com.mortrag.ut.wasabi.util.Constants;
 
 public class WasabiTextureMapObject extends TextureMapObject {
 	private float width;
@@ -18,7 +19,7 @@ public class WasabiTextureMapObject extends TextureMapObject {
 		setWidth(width);
 		setHeight(height);
 		boundingBox = new BoundingBox(new Vector3(x, y, 0.0f),
-				new Vector3(x + width, y + height, 0.0f));
+				new Vector3(x + width, y + height, Constants.BB_ZMAX));
 	}	
 	
 	public float getWidth() {

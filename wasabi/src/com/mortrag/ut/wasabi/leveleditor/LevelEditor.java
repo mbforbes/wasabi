@@ -97,7 +97,7 @@ public class LevelEditor implements Screen {
 		h = Gdx.graphics.getHeight();
 
 		// TODO(max): Set these in config.
-		level_width = 2000;
+		level_width = 20000;
 		level_height = 1500;
 
 		// Viewports are areas of the java window that have stuff rendered in them.
@@ -176,6 +176,7 @@ public class LevelEditor implements Screen {
 					sprite.getX(), sprite.getY(), sprite.getWidth(), sprite.getHeight());
 			mapObjects.add(wasabiTextureMapObject);
 		}
+		mapLayer.getProperties().put(Constants.MP.COLLIDABLE, true);
 		mapLayers.add(mapLayer);
 		// MapProperties are important
 		MapProperties mapProperties = map.getProperties();

@@ -11,9 +11,12 @@ import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.maps.Map;
+import com.badlogic.gdx.maps.MapLayer;
+import com.badlogic.gdx.maps.MapObject;
 import com.badlogic.gdx.maps.MapProperties;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.Array;
 import com.mortrag.ut.wasabi.WasabiGame;
@@ -26,6 +29,7 @@ import com.mortrag.ut.wasabi.characters.Inputable.Input;
 import com.mortrag.ut.wasabi.characters.Physicsable.Physics;
 import com.mortrag.ut.wasabi.characters.Physicsable;
 import com.mortrag.ut.wasabi.graphics.Common;
+import com.mortrag.ut.wasabi.graphics.WasabiTextureMapObject;
 import com.mortrag.ut.wasabi.input.Command;
 import com.mortrag.ut.wasabi.input.Controls;
 import com.mortrag.ut.wasabi.input.WasabiInput;
@@ -81,12 +85,13 @@ public class TestChamber implements Screen {
 	private Hero hero;
 	private Array<Inputable> inputables;
 	private Array<Inputable.Input> inputs; // for use in handleCommands(...)
-	private Array<Collidable> collidables;
+//	private Array<Collidable> collidables;
 	private Array<Physicsable> physicsables;
 	private Array<Advectable> advectables;
+	private Array<BoundingBox> boundaries;
 	
 	// Avoid GC!
-	private Vector2 nextP = new Vector2();
+	private Vector2 prevP = new Vector2();
 	
 	// ---------------------------------------------------------------------------------------------
 	// CONSTRUCTORS
@@ -112,7 +117,7 @@ public class TestChamber implements Screen {
 		commandList = new Array<Command>();
 		mapRenderer = new TestChamber_MapRenderer(map, batch);
 		mapRenderer.setView((OrthographicCamera) camera);
-		hero = new Hero(100f, 100f, 140f, 140f); // TODO(max): Figure out w/h automatically.
+		hero = new Hero(100f, 0f, 140f, 140f); // TODO(max): Figure out w/h automatically.
 		addAnimationsToHero();
 		
 		// collections
@@ -120,14 +125,33 @@ public class TestChamber implements Screen {
 		inputables = new Array<Inputable>();
 		inputables.add(hero);
 		
-		collidables = new Array<Collidable>();
-		collidables.add(hero);
+//		collidables = new Array<Collidable>();
+//		collidables.add(hero);
 		
 		physicsables = new Array<Physicsable>();
 		physicsables.add(hero);
 		
 		advectables = new Array<Advectable>();
 		advectables.add(hero);
+		
+		// map collision layers
+		boundaries = new Array<BoundingBox>();
+		Iterator<MapLayer> lit = map.getLayers().iterator();		
+		while (lit.hasNext()) {
+			MapLayer layer = lit.next();
+			if ((Boolean) layer.getProperties().get(Constants.MP.COLLIDABLE)) {
+				addBoundingBoxes(layer, boundaries);
+			}
+		}
+		// add level bounding boxes
+		boundaries.add(new BoundingBox(new Vector3(0.0f, -1.0f, 0.0f),
+				new Vector3(levelWidth, 0.0f, 0.0f))); // bottom
+//		boundaries.add(new BoundingBox(new Vector3(-1.0f, 0.0f, 0.0f),
+//				new Vector3(0.0f, levelHeight, 0.0f))); // left
+//		boundaries.add(new BoundingBox(new Vector3(0.0f, levelHeight, 0.0f),
+//				new Vector3(levelWidth, levelHeight + 1.0f, 0.0f))); // top
+//		boundaries.add(new BoundingBox(new Vector3(levelWidth, 0.0f, 0.0f),
+//				new Vector3(levelWidth + 1.0f, levelHeight, 0.0f))); // right
 	}
 	
 	// ---------------------------------------------------------------------------------------------
@@ -157,6 +181,17 @@ public class TestChamber implements Screen {
 				Animation.LOOP_PINGPONG));
 		hero.animations.put(Action.ATTACK, new Animation(0.1f, Common.getFrames(atlas, "s_wasAtk"),
 				Animation.NORMAL));
+	}
+	
+	private void addBoundingBoxes(MapLayer layer, Array<BoundingBox> boxes) {
+		Iterator<MapObject> oit = layer.getObjects().iterator();
+		while (oit.hasNext()) {
+			MapObject mapObject = oit.next();
+			// Right now we only deal with our custom WasabiTextureMapObjects...
+			if (mapObject instanceof WasabiTextureMapObject) {
+				boxes.add(((WasabiTextureMapObject) mapObject).getBoundingBox());
+			}
+		}
 	}
 	
 	private void backToEditor() {
@@ -241,48 +276,68 @@ public class TestChamber implements Screen {
 
 		Iterator<Advectable> ait = advectables.iterator();
 		while (ait.hasNext()) {
-			Advectable a = ait.next();
+			Advectable adv = ait.next();
+			Vector2 a = adv.getA();
+			Vector2 v = adv.getV();
+			Vector2 p = adv.getP();
+			prevP.set(p);
 			
 			// move first. most vector2 methods mutate the objects, so we explicitly do this.
-			a.getA().scl(delta); 
-			a.getV().add(a.getA());
-			a.getV().scl(delta);
-			nextP.scl(0.0f).add(a.getP()).add(a.getV());
+			a.scl(delta); 
+			v.add(a);
+			v.scl(delta);			
+			p.add(v); // set now so bounding box wil be updated; will correct if collisions
 			
-			// then handle collisions, if it's going to collide
-			if (a.collides()) {
-				// just doing level boundaries for now... Update this (and setOnGround(...) calls)!!
-				if (nextP.x < 0.0f) {
-					nextP.x = 0.0f;
-					a.getV().scl(0.0f, 1.0f); // stop vx
-				} else if (nextP.x + a.getWidth() > levelWidth) {
-					nextP.x = levelWidth - a.getWidth();
-					a.getV().scl(0.0f, 1.0f); // stop vx
+			// then handle collisions, if it's going to collide (double check)
+			if (adv.collides() && adv instanceof Collidable) {
+				//boolean hitGround = false;
+				boolean collided = false;
+				BoundingBox objBox = ((Collidable) adv).getBoundingBox();
+				// TODO(max): Can easily optimize. See ETH ref'd site, or just do level zones.
+				Iterator<BoundingBox> bit = boundaries.iterator();
+				while (bit.hasNext()) {
+					BoundingBox boundary = bit.next();
+					if (objBox.intersects(boundary)) {
+//						// Figure out what kind of intersection... maybe this part means the whole
+//						// boundary box thing is useless...
+//						if (objBox.min.x <= boundary.max.x) {
+//							// collide on left
+//							p.set(boundary.max.x, p.y);
+//							v.scl(0.0f, 1.0f); // stop vx
+//						} else if (objBox.max.x >= boundary.min.x) {
+//							// collide on right
+//							p.set(p.x - (objBox.max.x - boundary.min.x), p.y);
+//							v.scl(0.0f, 1.0f); // stop vx
+//						}
+//						if (objBox.min.y <= boundary.max.y) {
+//							// collide on bottom
+//							p.set(p.x, boundary.max.y);
+//							v.scl(1.0f, 0.0f); // stop vy
+//							hitGround = true;
+//						} else if (objBox.max.y >= boundary.min.y) {
+//							// collide on top
+//							p.set(p.x, p.y - (objBox.max.y - boundary.min.y));
+//							v.scl(1.0f, 0.0f); // stop vy
+//							hitGround = true;
+//						}
+						collided = true;
+					}
 				}
-				if (nextP.y < 0.0f) {
-					nextP.y = 0.0f;
-					a.getV().scl(1.0f, 0.0f); // stop vy
-				} else if (nextP.y + a.getHeight() > levelHeight) {
-					nextP.y = levelHeight - a.getHeight();
-					a.getV().scl(1.0f, 0.0f); // stop vy
-				}
-				
-				// This should be true because of a.collides(), but this is safer..
-				if (a instanceof Collidable) {
-					Collidable c = (Collidable) a;
-					// TODO(max): Make this more complicated check....
-					c.setOnGround(nextP.y == 0.0f);
-				}
+				if (collided) {
+					p.set(prevP);
+				}				
+				((Collidable) adv).setOnGround(collided);
 			}
-			
-			a.getP().set(nextP);
+
+			// just reject move
+
+						
 			
 			// "reset" A and "unscale" V 
-			a.getA().set(Vector2.Zero); // forces (accelerations) zeroed out; recomputed each step
-			a.getV().scl(1.0f / delta); // un-scale v
+			a.set(Vector2.Zero); // forces (accelerations) zeroed out; recomputed each step
+			v.scl(1.0f / delta); // un-scale v
 			
 			// clamp tiny values to 0
-			Vector2 v = a.getV();
 			if ((v.x > 0.0f && v.x < Advectable.CLAMP_EPSILON) ||
 					(v.x < 0.0f && v.x > -Advectable.CLAMP_EPSILON)) {
 				v.x = 0.0f;
@@ -293,7 +348,7 @@ public class TestChamber implements Screen {
 			}
 			
 			// may need to update animations (e.g. falling)
-			a.maybeUpdateAnimations(inputs);
+			adv.maybeUpdateAnimations(inputs);
 		}
 		
 		
@@ -312,8 +367,10 @@ public class TestChamber implements Screen {
 		// Enemies!
 		// (TBD)
 		
-		// Physics!
-		physics();
+		if (!paused) {
+			// Physics!
+			physics();
+		}
 		
 		// Report hero stats before A zeroed out
 		Debug.debugText.append("Hero P: " + hero.getP() + Constants.NL);
@@ -321,8 +378,10 @@ public class TestChamber implements Screen {
 		Debug.debugText.append("Hero A: " + hero.getA() + Constants.NL);
 		Debug.debugText.append("Hero on ground: " + hero.getOnGround() + Constants.NL);
 		
-		// Advect, taking care of collisions.
-		advectWithCollisions(delta);
+		if (!paused) {
+			// Advect, taking care of collisions.
+			advectWithCollisions(delta);
+		}
 		
 		// Handle GL stuff!
 		GL20 gl = Gdx.graphics.getGL20();

@@ -2,6 +2,9 @@
 
 ## Features
 
+### 09/29/2013
+ * Fuck collision detection
+
 ### 09/28/2013
  * Added debug count of objects drawn
  * Added hero debug info (position, velocity, acceleration, on ground?)
