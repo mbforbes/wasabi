@@ -1,3 +1,15 @@
+Features
+* Fix lurching (animation whitespace)
+
+* Draw bounding boxes (have keyboard shortcut to toggle view)
+
+* Implement animation-specific bounding boxes for characters
+
+* Implement enemy collision mechanics (die, restart)
+
+* Implement simple enemy movement AI (pace)
+
+Optimization
 * Replace all SpriteBatch bach.begin() and batch.end() method calls with a wrapper that logs when this happens and what viewport it was called from, and then see if there are any consecutive begin/end calls that can be refactored. Wawnt to avoid doing so many. Also, I *should* be able to change the GL20's glViewport within a batch's drawing and avoid more than just one of these...
 
 * Log Java GC calls

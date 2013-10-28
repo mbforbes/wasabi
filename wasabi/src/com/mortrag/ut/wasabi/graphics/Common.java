@@ -108,7 +108,8 @@ public class Common {
 		int i = ANIMATION_START_NUM;
 		Array<TextureRegion> frames = new Array<TextureRegion>();
 		while(true) {
-			TextureRegion frame = atlas.findRegion(name + i++);	 
+			//TextureRegion frame = atlas.findRegion(name + i++);	  
+			TextureRegion frame = atlas.createSprite(name + i++);
 			if (frame == null) {
 				break;
 			}

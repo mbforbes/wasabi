@@ -2,6 +2,9 @@
 
 ## Features
 
+### 09/30/2013
+ * Resized hero's bounding box to be slightly more accurate.
+
 ### 09/29/2013
  * Implemented basic, buggy all-object collision detection
  * Implemented basic camera movement during level
