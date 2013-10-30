@@ -2,6 +2,9 @@
 
 ## Features
 
+### 10/29/2013
+ * Fixed lurching (actually looks strange now without head-bobbing...)
+
 ### 09/30/2013
  * Resized hero's bounding box to be slightly more accurate.
 

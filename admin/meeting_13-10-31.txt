@@ -1,0 +1,7 @@
+Pre-meeting:
+- I'm thinking about Tom (Gobo)'s manifesto about users creating their own content. E.g.
+	- with Minecraft, they build their own worlds
+	- with the Sims, they build their own houses / lives
+	- this can fail (e.g. Spore)... Spore would be a GREAT case study to explore (I should play it)
+
+- Now, I'm thinking how we can apply this to our game. Do we want to do weapon or spell or clothing/ armor creation? Other games do this (e.g. Skyrim), but it's not that fun. Does it just require making it more core, making the mechanic more intuitive, or thinking of some additional gimmick to the mechanic?

@@ -1,9 +1,9 @@
 Features
-* Fix lurching (animation whitespace)
-
 * Draw bounding boxes (have keyboard shortcut to toggle view)
 
 * Implement animation-specific bounding boxes for characters
+
+* Fix 'smart' object rendering (appears to only use default screen bounds...)
 
 * Implement enemy collision mechanics (die, restart)
 

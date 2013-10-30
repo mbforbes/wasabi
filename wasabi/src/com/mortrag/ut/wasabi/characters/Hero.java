@@ -5,6 +5,7 @@ import java.util.Map;
 
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasSprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
@@ -78,7 +79,14 @@ public class Hero implements Inputable, Collidable, Physicsable, Advectable {
 		batch.begin();
 		TextureRegion keyFrame = animations.get(curAction).getKeyFrame(timeSinceActionStart);		
 		keyFrame.flip(keyFrame.isFlipX() != facingLeft, false);
-		batch.draw(keyFrame,p.x, p.y);
+		
+		if (keyFrame instanceof AtlasSprite) {
+			AtlasSprite spriteKeyFrame = (AtlasSprite) keyFrame;
+			spriteKeyFrame.setPosition(p.x, p.y);
+			((AtlasSprite) keyFrame).draw(batch);
+		} else {
+			batch.draw(keyFrame,p.x, p.y);
+		}
 		batch.end();
 	}
 
