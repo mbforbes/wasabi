@@ -7,11 +7,6 @@ import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.graphics.Pixmap;
-import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.Pixmap.Format;
-import com.badlogic.gdx.graphics.g2d.Animation;
-import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
@@ -29,7 +24,6 @@ import com.mortrag.ut.wasabi.WasabiGame;
 import com.mortrag.ut.wasabi.characters.Advectable;
 import com.mortrag.ut.wasabi.characters.Collidable;
 import com.mortrag.ut.wasabi.characters.Hero;
-import com.mortrag.ut.wasabi.characters.Hero.Action;
 import com.mortrag.ut.wasabi.characters.Inputable;
 import com.mortrag.ut.wasabi.characters.Inputable.Input;
 import com.mortrag.ut.wasabi.characters.Physicsable.Physics;
@@ -128,8 +122,7 @@ public class TestChamber implements Screen {
 		commandList = new Array<Command>();
 		mapRenderer = new TestChamber_MapRenderer(map, batch);
 		mapRenderer.setView((OrthographicCamera) mainCam);
-		hero = new Hero(100f, 100f, 105f, 100f); // TODO(max): Figure out w/h automatically.
-		addAnimationsToHero();
+		hero = new Hero(100f, 100f, atlas);
 		
 		// shapes (e.g. bounding box lines)
 		shapeRenderer = new ShapeRenderer();
@@ -190,19 +183,6 @@ public class TestChamber implements Screen {
 				new Vector3(levelWidth, levelHeight + 1.0f, 0.0f))); // top
 		boundaries.add(new BoundingBox(new Vector3(levelWidth, 0.0f, 0.0f),
 				new Vector3(levelWidth + 1.0f, levelHeight, 0.0f))); // right
-	}
-	
-	private void addAnimationsToHero() {
-		hero.animations.put(Action.RUN, new Animation(0.07f, Common.getFrames(atlas, "s_wasRun"),
-				Animation.LOOP));
-		hero.animations.put(Action.JUMP, new Animation(0.1f, Common.getFrames(atlas, "s_wasJump"),
-				Animation.NORMAL));
-		hero.animations.put(Action.FALL, new Animation(0.1f, Common.getFrames(atlas, "s_wasFall"),
-				Animation.NORMAL));
-		hero.animations.put(Action.IDLE, new Animation(0.1f, Common.getFrames(atlas, "s_wasIdle"),
-				Animation.LOOP_PINGPONG));
-		hero.animations.put(Action.ATTACK, new Animation(0.1f, Common.getFrames(atlas, "s_wasAtk"),
-				Animation.NORMAL));
 	}
 	
 	private void addBoundingBoxes(MapLayer layer, Array<BoundingBox> boxes) {

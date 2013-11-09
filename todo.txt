@@ -1,7 +1,5 @@
 Features
-* Fix whitespace for non-animated sprites (keep whitespace removed)
-
-* Implement animation-specific bounding boxes for characters
+* Fix right-side-of-map boundary (can currently jump out...)
 
 * Implement enemy collision mechanics (die, restart)
 

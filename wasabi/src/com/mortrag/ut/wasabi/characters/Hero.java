@@ -5,13 +5,16 @@ import java.util.Map;
 
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasSprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.Array;
+import com.mortrag.ut.wasabi.graphics.Common;
 import com.mortrag.ut.wasabi.util.Constants;
+import com.mortrag.ut.wasabi.util.Pair;
 
 public class Hero implements Inputable, Collidable, Physicsable, Advectable {
 	
@@ -19,6 +22,7 @@ public class Hero implements Inputable, Collidable, Physicsable, Advectable {
 	public static final float JUMP_ACCEL = 80000.0f;
 	
 	public static enum Action {
+		NONE, //DEBUG--should never be seen; used during construction to force loading of idle w/h
 		IDLE,
 		RUN,
 		JUMP,
@@ -34,6 +38,7 @@ public class Hero implements Inputable, Collidable, Physicsable, Advectable {
 	// state
 	private Action curAction;
 	private float timeSinceActionStart, w, h;
+	private Map<Action, Pair<Integer, Integer>> actionSizes;
 	private Vector2 p, v, a; // position, velocity, acceleration
 	public boolean onGround, collides, facingLeft;
 	private BoundingBox boundingBox; 
@@ -41,23 +46,36 @@ public class Hero implements Inputable, Collidable, Physicsable, Advectable {
 	// ---------------------------------------------------------------------------------------------
 	// CONSTRUCTORS
 	// ---------------------------------------------------------------------------------------------
-	public Hero(float w, float h) {
-		this(0.0f, 0.0f, w, h);
-	}
-	
-	public Hero(float x, float y, float w, float h) {
+
+	public Hero(float x, float y, TextureAtlas atlas) {
 		animations = new HashMap<Action, Animation>();
-		curAction = Action.IDLE;
+		curAction = Action.NONE; // temp--this removed before constructor end
 		timeSinceActionStart = 0.0f;
+		addAnimationsToHero(atlas);
 		
 		p = new Vector2(x, y);
 		v = new Vector2(0.0f, 0.0f);
 		a = new Vector2(0.0f, 0.0f);
 		collides = true; // ghost mode off, lol.
-		this.w = w;
-		this.h = h;
+		
+		actionSizes = new HashMap<Action, Pair<Integer, Integer>>();
+		setAction(Action.IDLE);
 		boundingBox = new BoundingBox(new Vector3(), new Vector3());
 	}
+	
+	private void addAnimationsToHero(TextureAtlas atlas) {
+		animations.put(Action.RUN, new Animation(0.07f, Common.getFrames(atlas, "s_wasRun"),
+				Animation.LOOP));
+		animations.put(Action.JUMP, new Animation(0.1f, Common.getFrames(atlas, "s_wasJump"),
+				Animation.NORMAL));
+		animations.put(Action.FALL, new Animation(0.1f, Common.getFrames(atlas, "s_wasFall"),
+				Animation.NORMAL));
+		animations.put(Action.IDLE, new Animation(0.1f, Common.getFrames(atlas, "s_wasIdle"),
+				Animation.LOOP_PINGPONG));
+		animations.put(Action.ATTACK, new Animation(0.1f, Common.getFrames(atlas, "s_wasAtk"),
+				Animation.NORMAL));
+	}
+		
 	
 	// ---------------------------------------------------------------------------------------------
 	// API
@@ -71,6 +89,18 @@ public class Hero implements Inputable, Collidable, Physicsable, Advectable {
 		if (curAction != action) {
 			curAction = action;
 			timeSinceActionStart = 0.0f;
+			
+			// auto set width!
+			if (actionSizes.containsKey(action)) {
+				Pair<Integer, Integer> size = actionSizes.get(action);
+				w = (float) size.first;
+				h = (float) size.second;
+			} else {
+				TextureRegion frame = animations.get(curAction).getKeyFrame(timeSinceActionStart);
+				w = frame.getRegionWidth();
+				h = frame.getRegionHeight();
+				actionSizes.put(action, new Pair<Integer, Integer>((int) w, (int) h));
+			}
 		}		
 	}
 	
@@ -95,7 +125,7 @@ public class Hero implements Inputable, Collidable, Physicsable, Advectable {
 		switch(i) {
 		case LEFT:
 			// Midair steering!
-			a.x -= MOVE_ACCEL; // TODO(max): Need left animation...
+			a.x -= MOVE_ACCEL;
 			facingLeft = true;
 			if (getOnGround()) {
 				setAction(Action.RUN);

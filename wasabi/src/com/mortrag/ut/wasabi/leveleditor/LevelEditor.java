@@ -129,8 +129,8 @@ public class LevelEditor implements Screen {
 		// -----------------------------------------------------------------------------------------		
 		batch = new SpriteBatch();
 		atlas = new TextureAtlas(Gdx.files.internal("../wasabi-android/assets/wasabi-atlas.atlas"));
-		//sprites = getSpritesFromAtlas(atlas); // option 1: strip whitespace 
-		sprites = atlas.createSprites(); // option 2: don't strip whitespace
+		sprites = getSpritesFromAtlas(atlas); // option 1: strip whitespace 
+		//sprites = atlas.createSprites(); // option 2: don't strip whitespace
 		placedSprites = new Array<Sprite>();
 		placedSpriteIdxes = new Array<Integer>();
 		curSpriteNum = 0;

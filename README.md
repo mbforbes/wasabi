@@ -5,6 +5,8 @@
 ### 11/08/2013
 * Draw bounding boxes (B toggles view)
 * Fix 'smart' object rendering (full map now OK; objects now only render smartly)
+* Fix whitespace for non-animated sprites (keep whitespace removed)
+* Implement animation-specific bounding boxes for characters (bugs?)
 
 ### 10/29/2013
  * Fixed lurching (actually looks strange now without head-bobbing...)
