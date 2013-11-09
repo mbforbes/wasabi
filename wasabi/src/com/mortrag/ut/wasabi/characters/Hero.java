@@ -15,7 +15,7 @@ import com.mortrag.ut.wasabi.util.Constants;
 
 public class Hero implements Inputable, Collidable, Physicsable, Advectable {
 	
-	public static final float MOVE_ACCEL = 4000.0f;
+	public static final float MOVE_ACCEL = 5000.0f;
 	public static final float JUMP_ACCEL = 80000.0f;
 	
 	public static enum Action {

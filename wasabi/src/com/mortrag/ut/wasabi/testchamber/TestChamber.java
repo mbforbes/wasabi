@@ -7,9 +7,15 @@ import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Pixmap;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.Pixmap.Format;
 import com.badlogic.gdx.graphics.g2d.Animation;
+import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import com.badlogic.gdx.maps.Map;
 import com.badlogic.gdx.maps.MapLayer;
 import com.badlogic.gdx.maps.MapObject;
@@ -62,6 +68,7 @@ public class TestChamber implements Screen {
 	// Graphics
 	private SpriteBatch batch;
 	private TextureAtlas atlas;
+	private ShapeRenderer shapeRenderer;
 	
 	// Input
 	private WasabiInput input;
@@ -75,6 +82,7 @@ public class TestChamber implements Screen {
 	private TestChamber_MapRenderer mapRenderer;
 	
 	// State
+	private boolean renderBoudningBoxes = true;
 	private boolean paused = false;
 	// TODO(max): Refactor into hero
 	
@@ -91,6 +99,7 @@ public class TestChamber implements Screen {
 	private Array<BoundingBox> boundaries;
 	
 	// Avoid GC!
+	
 	
 	// ---------------------------------------------------------------------------------------------
 	// CONSTRUCTORS
@@ -121,6 +130,10 @@ public class TestChamber implements Screen {
 		mapRenderer.setView((OrthographicCamera) mainCam);
 		hero = new Hero(100f, 100f, 105f, 100f); // TODO(max): Figure out w/h automatically.
 		addAnimationsToHero();
+		
+		// shapes (e.g. bounding box lines)
+		shapeRenderer = new ShapeRenderer();
+		
 		
 		// collections
 		inputs = new Array<Inputable.Input>();
@@ -237,6 +250,9 @@ public class TestChamber implements Screen {
 					break;
 				case JUMP:
 					inputs.add(Input.UP);
+					break;
+				case BOUNDING_BOXES:
+					renderBoudningBoxes = !renderBoudningBoxes;
 					break;
 				case PAUSE:
 					pause();
@@ -367,9 +383,29 @@ public class TestChamber implements Screen {
 			
 			// may need to update animations (e.g. falling)
 			adv.maybeUpdateAnimations(inputs);
+		}	
+	}
+	
+
+	/**
+	 * Render level and hero bounding boxes. Will have to generalize for enemies as well.
+	 * 
+	 * TODO(max): Slower framerate due to wasting all this memory destroys physics and everything
+	 * goes to hell. Solving the memory problem will probably fix this, but this does make me
+	 * wonder, if this is being played on a slower device or there are tones of objects, will
+	 * the physics always break when the framerate gets bad?
+	 */
+	private void renderBoundingBoxes() {
+		shapeRenderer.begin(ShapeType.Line);
+		shapeRenderer.setColor(1.0f, 0.0f, 0.0f, 0.7f);
+		Iterator<BoundingBox> bit = boundaries.iterator();
+		while (bit.hasNext()) {
+			BoundingBox b = bit.next();
+			shapeRenderer.rect(b.min.x, b.min.y, b.max.x - b.min.x, b.max.y - b.min.y);
 		}
-		
-		
+		BoundingBox b = hero.getBoundingBox();
+		shapeRenderer.rect(b.min.x, b.min.y, b.max.x - b.min.x, b.max.y - b.min.y);
+		shapeRenderer.end();
 	}
 
 	
@@ -414,6 +450,7 @@ public class TestChamber implements Screen {
 				0.0f);
 		mainCam.update();
 		batch.setProjectionMatrix(mainCam.combined);
+		shapeRenderer.setProjectionMatrix(mainCam.combined);
 		Debug.debugText.append("Camera pos: " + mainCam.position + Constants.NL);
 		
 		// Overall (e.g. debug, pause) cam
@@ -424,10 +461,17 @@ public class TestChamber implements Screen {
 				(int) mainViewport.height);
 		
 		// Render the map!
+		mapRenderer.setView((OrthographicCamera)mainCam);
 		mapRenderer.render();
 		
 		// Render the hero!
 		hero.render(batch, delta);
+		
+		// Redner collision boundaries. Warning: currently EATS up memory. Debug only. Still should
+		// find a way to optimize.
+		if (Debug.DEBUG && renderBoudningBoxes) {
+			renderBoundingBoxes();
+		}
 		
 		// Paused overlay
 		if (paused) {

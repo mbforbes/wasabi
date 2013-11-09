@@ -17,6 +17,7 @@ public class TestChamber_Controls extends Controls {
 		addKeyCommand(Keys.RIGHT, KeyModifier.ANY, TestChamber_Commands.MOVE_RIGHT, "right");
 		addKeyCommand(Keys.SPACE, KeyModifier.ANY, TestChamber_Commands.JUMP, "space bar");
 		addControlText("");
+		addKeyCommand(Keys.B, KeyModifier.ANY, TestChamber_Commands.BOUNDING_BOXES, "B");
 		addKeyCommand(Keys.P, KeyModifier.ANY, TestChamber_Commands.PAUSE, "P");
 		addKeyCommand(Keys.X, KeyModifier.ANY, TestChamber_Commands.BACK_TO_EDITOR, "X");
 

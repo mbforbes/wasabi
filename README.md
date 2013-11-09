@@ -2,6 +2,10 @@
 
 ## Features
 
+### 11/08/2013
+* Draw bounding boxes (B toggles view)
+* Fix 'smart' object rendering (full map now OK; objects now only render smartly)
+
 ### 10/29/2013
  * Fixed lurching (actually looks strange now without head-bobbing...)
 
