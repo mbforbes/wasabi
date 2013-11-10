@@ -25,7 +25,6 @@ import com.mortrag.ut.wasabi.characters.Advectable;
 import com.mortrag.ut.wasabi.characters.ArmorEnemy;
 import com.mortrag.ut.wasabi.characters.Behaviorable;
 import com.mortrag.ut.wasabi.characters.Collidable;
-import com.mortrag.ut.wasabi.characters.Enemy;
 import com.mortrag.ut.wasabi.characters.Hero;
 import com.mortrag.ut.wasabi.characters.Inputable;
 import com.mortrag.ut.wasabi.characters.Inputable.Input;
@@ -65,6 +64,7 @@ public class TestChamber implements Screen {
 	
 	// Graphics
 	private SpriteBatch batch;
+	@SuppressWarnings("unused") // Probably will need this at some point.
 	private TextureAtlas atlas;
 	private ShapeRenderer shapeRenderer;
 	
@@ -72,7 +72,7 @@ public class TestChamber implements Screen {
 	private WasabiInput input;
 	private Controls controls;
 	private Array<Command> commandList;
-	@SuppressWarnings("unused")
+	@SuppressWarnings("unused") // Probably will need this at some point.
 	private MouseState mouseState;
 	
 	// Map
