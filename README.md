@@ -2,6 +2,12 @@
 
 ## Features
 
+### 11/09/2013
+* Fix animation-specific bounding boxes for characters (correct fit)
+* Fix right-side bounding box collisions (animation change)
+* Heavily refactored Hero code into abstract WasabiCharacter class; added Renderable interface; added abstract Enemy class and ArmorEnemy.
+* Implement simple enemy movement AI (pace)
+
 ### 11/08/2013
 * Draw bounding boxes (B toggles view)
 * Fix 'smart' object rendering (full map now OK; objects now only render smartly)

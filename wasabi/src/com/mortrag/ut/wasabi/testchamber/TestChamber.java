@@ -22,12 +22,16 @@ import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.Array;
 import com.mortrag.ut.wasabi.WasabiGame;
 import com.mortrag.ut.wasabi.characters.Advectable;
+import com.mortrag.ut.wasabi.characters.ArmorEnemy;
+import com.mortrag.ut.wasabi.characters.Behaviorable;
 import com.mortrag.ut.wasabi.characters.Collidable;
+import com.mortrag.ut.wasabi.characters.Enemy;
 import com.mortrag.ut.wasabi.characters.Hero;
 import com.mortrag.ut.wasabi.characters.Inputable;
 import com.mortrag.ut.wasabi.characters.Inputable.Input;
 import com.mortrag.ut.wasabi.characters.Physicsable.Physics;
 import com.mortrag.ut.wasabi.characters.Physicsable;
+import com.mortrag.ut.wasabi.characters.WasabiCharacter;
 import com.mortrag.ut.wasabi.graphics.Common;
 import com.mortrag.ut.wasabi.graphics.WasabiTextureMapObject;
 import com.mortrag.ut.wasabi.input.Command;
@@ -84,13 +88,14 @@ public class TestChamber implements Screen {
 	BoundingBox b = new BoundingBox();
 	
 	// Characters!
-	private Hero hero;
+	private WasabiCharacter hero; // only for debug I think! (e.g. where is hero!)
 	private Array<Inputable> inputables;
 	private Array<Inputable.Input> inputs; // for use in handleCommands(...)
-//	private Array<Collidable> collidables;
 	private Array<Physicsable> physicsables;
 	private Array<Advectable> advectables;
 	private Array<BoundingBox> boundaries;
+	private Array<WasabiCharacter> characters;
+	private Array<Behaviorable> behaviorables;
 	
 	// Avoid GC!
 	
@@ -121,31 +126,45 @@ public class TestChamber implements Screen {
 		controls = new TestChamber_Controls();
 		commandList = new Array<Command>();
 		mapRenderer = new TestChamber_MapRenderer(map, batch);
-		mapRenderer.setView((OrthographicCamera) mainCam);
-		hero = new Hero(100f, 100f, atlas);
-		
+		mapRenderer.setView((OrthographicCamera) mainCam);		
+		boundaries = new Array<BoundingBox>();		
+		updateBoundingBoxes(); // map collision layers
 		// shapes (e.g. bounding box lines)
 		shapeRenderer = new ShapeRenderer();
 		
-		
 		// collections
+		characters = new Array<WasabiCharacter>();
+		behaviorables = new Array<Behaviorable>();
 		inputs = new Array<Inputable.Input>();
 		inputables = new Array<Inputable>();
-		inputables.add(hero);
-		
-//		collidables = new Array<Collidable>();
-//		collidables.add(hero);
-		
 		physicsables = new Array<Physicsable>();
-		physicsables.add(hero);
-		
 		advectables = new Array<Advectable>();
-		advectables.add(hero);
 		
-		boundaries = new Array<BoundingBox>();
+		// populate characters (TODO should be from level editor)
+		hero = new Hero(100f, 100f, atlas);
+		characters.add(hero);
+		characters.add(new Hero(200f, 200f, atlas));
+		characters.add(new Hero(300f, 300f, atlas));
 		
-		// map collision layers
-		updateBoundingBoxes();
+		characters.add(new ArmorEnemy(400f, 400f, atlas));
+		
+		// now, populate other lists we care about from character list
+		Iterator<WasabiCharacter> cit = characters.iterator();
+		while (cit.hasNext()) {
+			WasabiCharacter c = cit.next();
+			if (c instanceof Inputable) {
+				inputables.add((Inputable) c);
+			}
+			if (c instanceof Physicsable) {
+				physicsables.add((Physicsable) c);
+			}
+			if (c instanceof Advectable) {
+				advectables.add((Advectable) c);
+			}
+			if (c instanceof Behaviorable) {
+				behaviorables.add((Behaviorable) c);
+			}
+		}
 	}
 	
 	// ---------------------------------------------------------------------------------------------
@@ -248,14 +267,10 @@ public class TestChamber implements Screen {
 		} // while (more commands)
 
 		// process inputables. These variable names are horrible. Sorry.
-		Iterator<Input> iit = inputs.iterator();
-		while (iit.hasNext()) {
-			Input i = iit.next();
-			Iterator<Inputable> inpit = inputables.iterator();
-			while (inpit.hasNext()) {
-				Inputable ip = inpit.next();
-				ip.input(i);
-			}
+		Iterator<Inputable> inpit = inputables.iterator();
+		while (inpit.hasNext()) {
+			Inputable ip = inpit.next();
+			ip.inputs(inputs);
 		}
 		
 		// removes the inputs that were just PRESS actions
@@ -273,7 +288,6 @@ public class TestChamber implements Screen {
 			// Friction to all for ... yeah
 			p.applyPhysics(Physics.FRICTION);
 		}
-		
 	}
 	
 	private void advectWithCollisions(float delta) {
@@ -290,17 +304,33 @@ public class TestChamber implements Screen {
 			// move first. most vector2 methods mutate the objects, so we explicitly do this.
 			a.scl(delta); 
 			v.add(a);
-			v.scl(delta);			
+			v.scl(delta);	
+			// "reset" A
+			a.set(Vector2.Zero); // forces (accelerations) zeroed out; recomputed each step
+			
+			// clamp tiny values to 0
+			if ((v.x > 0.0f && v.x < Advectable.CLAMP_EPSILON) ||
+					(v.x < 0.0f && v.x > -Advectable.CLAMP_EPSILON)) {
+				v.x = 0.0f;
+			}
+			if ((v.y > 0.0f && v.y < Advectable.CLAMP_EPSILON) || 
+					(v.y < 0.0f && v.y > -Advectable.CLAMP_EPSILON)) {
+				v.y = 0.0f;
+			}			
 			
 			// then handle collisions, if it's going to collide (double check)
 			if (adv.collides() && adv instanceof Collidable) {
-				// NOTE(max): pbb (prevBoundingBox) is useless as soon as the position changes!!! So
-				// we extract and save what we care about in locals.
-				BoundingBox pbb = ((Collidable) adv).getBoundingBox();
+				Collidable cadv = (Collidable) adv;
+				BoundingBox pbb = cadv.getPrevBoundingBox();
+				// Note: local primitives probably not necessary anymore.
 				float prevMinX = pbb.min.x, prevMinY = pbb.min.y, prevMaxX = pbb.max.x,
 						prevMaxY = pbb.max.y;
 				
-				p.add(v); // set now so bounding box wil be updated; will correct if collisions
+				p.add(v); // set now so bounding box will be updated; will correct if collisions				
+				
+				// may need to update animations (e.g. falling). Doing this before bounding box
+				// computed because bounding box depends on animations!
+				adv.maybeUpdateAnimations();
 				
 				//boolean hitGround = false;
 				boolean onGround = false;
@@ -310,7 +340,7 @@ public class TestChamber implements Screen {
 				while (bit.hasNext()) {
 					// Need to recompute object bounding box in case it changes. Probably shouldn't
 					// actually do this for every other object but...
-					BoundingBox objBox = ((Collidable) adv).getBoundingBox();
+					BoundingBox objBox = cadv.getBoundingBox();
 					BoundingBox boundary = bit.next();
 					if (objBox.intersects(boundary)) {
 						// Figure out what kind of intersection... maybe this part means the whole
@@ -342,27 +372,14 @@ public class TestChamber implements Screen {
 						}
 					}
 				}
-				((Collidable) adv).setOnGround(onGround); 
-			} else {
-				p.add(v); // just move
+				cadv.setOnGround(onGround); 
+				cadv.setPrevBoundingBox(cadv.getBoundingBox()); 
+			} else { // if (adv.collides() && adv instanceof Collidable)
+				p.add(v);
 			}
 			
-			// "reset" A and "unscale" V 
-			a.set(Vector2.Zero); // forces (accelerations) zeroed out; recomputed each step
+			// "unscale" V 
 			v.scl(1.0f / delta); // un-scale v
-			
-			// clamp tiny values to 0
-			if ((v.x > 0.0f && v.x < Advectable.CLAMP_EPSILON) ||
-					(v.x < 0.0f && v.x > -Advectable.CLAMP_EPSILON)) {
-				v.x = 0.0f;
-			}
-			if ((v.y > 0.0f && v.y < Advectable.CLAMP_EPSILON) || 
-					(v.y < 0.0f && v.y > -Advectable.CLAMP_EPSILON)) {
-				v.y = 0.0f;
-			}
-			
-			// may need to update animations (e.g. falling)
-			adv.maybeUpdateAnimations(inputs);
 		}	
 	}
 	
@@ -378,34 +395,54 @@ public class TestChamber implements Screen {
 	private void renderBoundingBoxes() {
 		shapeRenderer.begin(ShapeType.Line);
 		shapeRenderer.setColor(1.0f, 0.0f, 0.0f, 0.7f);
+		
+		// Boundaries
 		Iterator<BoundingBox> bit = boundaries.iterator();
 		while (bit.hasNext()) {
 			BoundingBox b = bit.next();
 			shapeRenderer.rect(b.min.x, b.min.y, b.max.x - b.min.x, b.max.y - b.min.y);
 		}
-		BoundingBox b = hero.getBoundingBox();
-		shapeRenderer.rect(b.min.x, b.min.y, b.max.x - b.min.x, b.max.y - b.min.y);
+		
+		// Characters
+		Iterator<WasabiCharacter> cit = characters.iterator();
+		while (cit.hasNext()) {
+			WasabiCharacter c = cit.next();
+			BoundingBox b = c.getBoundingBox();
+			shapeRenderer.rect(b.min.x, b.min.y, b.max.x - b.min.x, b.max.y - b.min.y);
+		}		
+		
 		shapeRenderer.end();
 	}
 
+	/**
+	 * Tick all behaviors
+	 * @param delta time since last render called
+	 */
+	private void behaviors(float delta) {
+		Iterator<Behaviorable> bit = behaviorables.iterator();
+		while (bit.hasNext()) {
+			Behaviorable b = bit.next();
+			b.tick(delta);
+		}
+	}
 	
 	// ---------------------------------------------------------------------------------------------	
 	// PUBLIC (auto-called)
 	// ---------------------------------------------------------------------------------------------	
 	@Override
 	public void render(float delta) {
-		// Input!
+		// Add input forces
 		handleCommands();
 		
-		// Enemies!
-		// (TBD)
-		
 		if (!paused) {
-			// Physics!
+			// Add behavior forces	
+			behaviors(delta);
+			// Add physics forces.
 			physics();
 		}
 		
 		// Report hero stats before A zeroed out
+		// TODO: right now we just assume hero is first...
 		Debug.debugText.append("Hero P: " + hero.getP() + Constants.NL);
 		Debug.debugText.append("Hero V: " + hero.getV() + Constants.NL);
 		Debug.debugText.append("Hero A: " + hero.getA() + Constants.NL);
@@ -444,8 +481,12 @@ public class TestChamber implements Screen {
 		mapRenderer.setView((OrthographicCamera)mainCam);
 		mapRenderer.render();
 		
-		// Render the hero!
-		hero.render(batch, delta);
+		// Render the characters!
+		Iterator<WasabiCharacter> cit = characters.iterator();
+		while (cit.hasNext()) {
+			WasabiCharacter c = cit.next();
+			c.render(batch, delta);
+		}
 		
 		// Redner collision boundaries. Warning: currently EATS up memory. Debug only. Still should
 		// find a way to optimize.

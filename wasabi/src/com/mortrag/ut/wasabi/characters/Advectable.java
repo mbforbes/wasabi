@@ -12,8 +12,6 @@ public interface Advectable {
 	public Vector2 getP();	
 	public Vector2 getV();
 	public Vector2 getA();	
-	public float getWidth();
-	public float getHeight();
 	
 	/**
 	 * @return Whether this object should respond to collidable objects. If this is false and an
@@ -24,5 +22,5 @@ public interface Advectable {
 	/**
 	 * E.g. if falling changes animation.
 	 */
-	public void maybeUpdateAnimations(Array<Inputable.Input> inputs);
+	public void maybeUpdateAnimations();
 }
