@@ -7,5 +7,5 @@ package com.mortrag.ut.wasabi.characters;
  *
  */
 public interface Behavior {
-	public void tick(Behaviorable b, float delta);
+	public void tick(float delta);
 }

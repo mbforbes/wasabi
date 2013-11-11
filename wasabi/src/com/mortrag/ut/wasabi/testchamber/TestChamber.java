@@ -80,12 +80,8 @@ public class TestChamber implements Screen {
 	private TestChamber_MapRenderer mapRenderer;
 	
 	// State
-	private boolean renderBoudningBoxes = true;
-	private boolean paused = false;
-	// TODO(max): Refactor into hero
-	
-	// Physics!
-	BoundingBox b = new BoundingBox();
+	private boolean renderBoudningBoxes = true, paused = false, frameByFrame = false,
+			nextFrame = false;
 	
 	// Characters!
 	private WasabiCharacter hero; // only for debug I think! (e.g. where is hero!)
@@ -96,9 +92,6 @@ public class TestChamber implements Screen {
 	private Array<BoundingBox> boundaries;
 	private Array<WasabiCharacter> characters;
 	private Array<Behaviorable> behaviorables;
-	
-	// Avoid GC!
-	
 	
 	// ---------------------------------------------------------------------------------------------
 	// CONSTRUCTORS
@@ -223,7 +216,7 @@ public class TestChamber implements Screen {
 		game.getAndSetScreen(LevelEditor.NAME);		
 	}
 	
-	private void handleCommands() {
+	private void translateCommandsToInputs() {
 		inputs.clear();
 		Iterator<Command> cit = commandList.iterator();
 		while (cit.hasNext()) {
@@ -253,6 +246,12 @@ public class TestChamber implements Screen {
 				case BOUNDING_BOXES:
 					renderBoudningBoxes = !renderBoudningBoxes;
 					break;
+				case FRAME_BY_FRAME:
+					frameByFrame = !frameByFrame;
+					break;
+				case NEXT_FRAME:
+					nextFrame = true;
+					break;					
 				case PAUSE:
 					pause();
 					break;
@@ -265,16 +264,18 @@ public class TestChamber implements Screen {
 				} // switch (normal game state)
 			} // else (if paused)
 		} // while (more commands)
-
+		
+		// removes the inputs that were just PRESS actions
+		input.clearPress();
+	}
+	
+	private void sendInputsToInputables() {
 		// process inputables. These variable names are horrible. Sorry.
 		Iterator<Inputable> inpit = inputables.iterator();
 		while (inpit.hasNext()) {
 			Inputable ip = inpit.next();
 			ip.inputs(inputs);
 		}
-		
-		// removes the inputs that were just PRESS actions
-		input.clearPress();
 	}
 	
 	private void physics() {
@@ -288,6 +289,13 @@ public class TestChamber implements Screen {
 			// Friction to all for ... yeah
 			p.applyPhysics(Physics.FRICTION);
 		}
+	}
+	
+	private void zeroAccelerations() {
+		Iterator<Advectable> ait = advectables.iterator();
+		while (ait.hasNext()) {
+			ait.next().getA().scl(0.0f);
+		}		
 	}
 	
 	private void advectWithCollisions(float delta) {
@@ -304,9 +312,10 @@ public class TestChamber implements Screen {
 			// move first. most vector2 methods mutate the objects, so we explicitly do this.
 			a.scl(delta); 
 			v.add(a);
-			v.scl(delta);	
+			v.scl(delta);
+			
 			// "reset" A
-			a.set(Vector2.Zero); // forces (accelerations) zeroed out; recomputed each step
+//			a.set(Vector2.Zero); // forces (accelerations) zeroed out; recomputed each step
 			
 			// clamp tiny values to 0
 			if ((v.x > 0.0f && v.x < Advectable.CLAMP_EPSILON) ||
@@ -325,8 +334,10 @@ public class TestChamber implements Screen {
 				// Note: local primitives probably not necessary anymore.
 				float prevMinX = pbb.min.x, prevMinY = pbb.min.y, prevMaxX = pbb.max.x,
 						prevMaxY = pbb.max.y;
+				boolean onGroundPrev = cadv.getOnGround();
 				
-				p.add(v); // set now so bounding box will be updated; will correct if collisions				
+				// set now so bounding box will be updated; will correct if collisions				
+				p.add(v); 
 				
 				// may need to update animations (e.g. falling). Doing this before bounding box
 				// computed because bounding box depends on animations!
@@ -345,16 +356,26 @@ public class TestChamber implements Screen {
 					if (objBox.intersects(boundary)) {
 						// Figure out what kind of intersection... maybe this part means the whole
 						// boundary box thing is useless...
-						if (prevMinX >= boundary.max.x && objBox.min.x < boundary.max.x) {
+						if (prevMinX >= boundary.max.x && objBox.min.x < boundary.max.x &&
+								// disable sticky floors
+								!((objBox.min.y == boundary.max.y && onGroundPrev ) ||
+										// disable sticky ceilings
+										objBox.max.y == boundary.min.y)) {
 							// collide on left
 							p.set(boundary.max.x, p.y);
 							v.scl(0.0f, 1.0f); // stop vx
-						} else if (prevMaxX <= boundary.min.x && objBox.max.x > boundary.min.x) {
+						} else if (prevMaxX <= boundary.min.x && objBox.max.x > boundary.min.x &&
+								// disable sticky floors
+								!((objBox.min.y == boundary.max.y && onGroundPrev ) ||
+										// disable sticky ceilings
+										objBox.max.y == boundary.min.y)) {
 							// collide on right
 							p.set(p.x - (objBox.max.x - boundary.min.x), p.y);
 							v.scl(0.0f, 1.0f); // stop vx
 						}
-						if (prevMinY >= boundary.max.y && objBox.min.y < boundary.max.y) {
+						if (prevMinY >= boundary.max.y && objBox.min.y < boundary.max.y &&
+								// Avoid the corner case (literally)...
+								prevMaxX >= boundary.min.x) {
 							// collide on bottom
 							p.set(p.x, boundary.max.y);
 							v.scl(1.0f, 0.0f); // stop vy
@@ -426,13 +447,22 @@ public class TestChamber implements Screen {
 		}
 	}
 	
-	// ---------------------------------------------------------------------------------------------	
-	// PUBLIC (auto-called)
-	// ---------------------------------------------------------------------------------------------	
-	@Override
-	public void render(float delta) {
-		// Add input forces
-		handleCommands();
+	private void update(float delta) {
+		// Get commands issued by user and map to real state changes
+		translateCommandsToInputs();
+		
+		// If we're doing frame-by-frame and weren't told to advance the frame, don't
+		// do so.
+		if (frameByFrame && !nextFrame) {
+			return;
+		}
+		nextFrame = false;
+		
+		// Zero out accelerations from last update.
+		zeroAccelerations();
+		
+		// Add input force
+		sendInputsToInputables();
 		
 		if (!paused) {
 			// Add behavior forces	
@@ -441,22 +471,35 @@ public class TestChamber implements Screen {
 			physics();
 		}
 		
-		// Report hero stats before A zeroed out
-		// TODO: right now we just assume hero is first...
-		Debug.debugText.append("Hero P: " + hero.getP() + Constants.NL);
-		Debug.debugText.append("Hero V: " + hero.getV() + Constants.NL);
-		Debug.debugText.append("Hero A: " + hero.getA() + Constants.NL);
-		Debug.debugText.append("Hero on ground: " + hero.getOnGround() + Constants.NL);
-		
 		if (!paused) {
 			// Advect, taking care of collisions.
 			advectWithCollisions(delta);
-		}
+		}		
 		
+	}
+	
+	// ---------------------------------------------------------------------------------------------	
+	// PUBLIC (auto-called)
+	// ---------------------------------------------------------------------------------------------	
+	@Override
+	public void render(float delta) {
+		// Do non-rendering code
+		// ---------------------
+		update(delta);
+		
+		// Actual rendering below.
+		// -----------------------
+
 		// Handle GL stuff!
 		GL20 gl = Gdx.graphics.getGL20();
 		gl.glClearColor(1, 1, 1, 1);
 		gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+		
+		// Report hero stats
+		Debug.debugText.append("Hero P: " + hero.getP() + Constants.NL);
+		Debug.debugText.append("Hero V: " + hero.getV() + Constants.NL);
+		Debug.debugText.append("Hero A: " + hero.getA() + Constants.NL);
+		Debug.debugText.append("Hero on ground: " + hero.getOnGround() + Constants.NL);		
 		
 		// Update cameras!
 		// Main cam:

@@ -9,9 +9,19 @@ import com.badlogic.gdx.utils.Array;
 import com.mortrag.ut.wasabi.graphics.Common;
 
 public class Hero extends WasabiCharacter implements Renderable, Inputable, Collidable, Physicsable, Advectable {
+
+	// ---------------------------------------------------------------------------------------------
+	// CONSTRUCTORS
+	// ---------------------------------------------------------------------------------------------
 	
 	public static final float MOVE_ACCEL = 5000.0f;
 	public static final float JUMP_ACCEL = 80000.0f;
+	
+	// ---------------------------------------------------------------------------------------------
+	// FIELDS
+	// ---------------------------------------------------------------------------------------------
+
+	private boolean inputLeft, inputRight, inputUp;
 	
 	// ---------------------------------------------------------------------------------------------
 	// CONSTRUCTORS
@@ -53,9 +63,9 @@ public class Hero extends WasabiCharacter implements Renderable, Inputable, Coll
 	@Override
 	public void inputs(Array<Input> inputs) {
 		// TODO(max): Hackey... clear previous inputs
-		goingLeft = false;
-		goingRight = false;
-		goingUp = false;
+		inputLeft = false;
+		inputRight = false;
+		inputUp = false;
 		
 		// iterate through new inputs
 		Iterator<Input> inpit = inputs.iterator();
@@ -63,13 +73,13 @@ public class Hero extends WasabiCharacter implements Renderable, Inputable, Coll
 			Input i = inpit.next();
 			switch(i) {
 			case LEFT:
-				goingLeft = true;
+				inputLeft = true;
 				break;
 			case RIGHT:
-				goingRight = true;
+				inputRight = true;
 				break;
 			case UP:
-				goingUp = true;
+				inputUp = true;
 				break;
 			}			
 		}
@@ -84,27 +94,22 @@ public class Hero extends WasabiCharacter implements Renderable, Inputable, Coll
 		//    other methods, e.g. for updating animations. Otherwise we have to
 		//    pass the inputs to the animation update, which doesn't make sense
 		//    non-inputable characters.
-		if (goingLeft) {
+		if (inputLeft) {
 			// Midair steering!
 			a.x -= MOVE_ACCEL;
 			facingLeft = true;
-			if (getOnGround()) {
-				setAction(Action.RUN);
-			}
 		}
-		if (goingRight) {
+		if (inputRight) {
 			// Midair steering
 			a.x += MOVE_ACCEL;
 			facingLeft = false;
-			if (getOnGround()) {
-				setAction(Action.RUN);
-			}			
 		}
-		if (goingUp) {
+		if (inputUp) {
 			// Maybe jump.
 			if (getOnGround()) {	
 				a.y += JUMP_ACCEL;
-				setAction(Action.JUMP);
+				// action SHOULD be update later (fingers crossed)
+				//setAction(Action.JUMP);
 			}
 		}
 	}
@@ -129,5 +134,15 @@ public class Hero extends WasabiCharacter implements Renderable, Inputable, Coll
 			break;
 		}
 		
+	}
+
+	@Override
+	public boolean getGoingLeft() {
+		return inputLeft;
+	}
+
+	@Override
+	public boolean getGoingRight() {
+		return inputRight;
 	}
 }

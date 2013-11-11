@@ -8,6 +8,8 @@ public enum TestChamber_Commands implements Command {
 	JUMP("make hero jump", Type.PRESS),
 	
 	BOUNDING_BOXES("toggle bounding boxes on/off", Type.PRESS),
+	FRAME_BY_FRAME("toggle frame-by-frame mode", Type.PRESS),
+	NEXT_FRAME("advance frame in frame-by-frame mode", Type.PRESS),
 	BACK_TO_EDITOR("go back to the level editor", Type.PRESS),
 	PAUSE("pause", Type.PRESS);
 

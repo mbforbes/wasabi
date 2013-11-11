@@ -6,5 +6,4 @@ public abstract class Enemy extends WasabiCharacter {
 		super(x, y);
 		// TODO Auto-generated constructor stub
 	}
-
 }

@@ -2,6 +2,13 @@
 
 ## Features
 
+### 11/10/2013
+* Fix animation mapping bug (refactored movemet 'intent' to differentiate from user input and behavior 'force', while keeping mechanic the same).
+* As a practical consequence, the guard can now march (thanks, Coop!)
+* Did preliminary multi-floor surface edge catching fix. Fantastically awful bug still there.
+* Implemented frame-by-frame updates (F enables/disables, N goes to next frame) by separating physics from rendering into update() and render() methods. This helped with discovering details of aforementioned bug.
+* Fixed floor edge-catching bug.
+
 ### 11/09/2013
 * Fix animation-specific bounding boxes for characters (correct fit)
 * Fix right-side bounding box collisions (animation change)

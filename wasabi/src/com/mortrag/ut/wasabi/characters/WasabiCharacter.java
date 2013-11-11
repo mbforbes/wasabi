@@ -33,7 +33,7 @@ public abstract class WasabiCharacter implements Renderable, Advectable, Collida
 	protected Vector2 p, v, a; // position, velocity, acceleration
 	protected float timeSinceActionStart, w, h;	
 	protected Action curAction;
-	protected boolean facingLeft, collides, onGround, goingLeft, goingRight, goingUp;
+	protected boolean facingLeft, collides, onGround, onGroundPrev;
 	protected BoundingBox boundingBox, prevBoundingBox; 	
 	protected Map<Action, Pair<Integer, Integer>> actionSizes;	
 	
@@ -100,12 +100,15 @@ public abstract class WasabiCharacter implements Renderable, Advectable, Collida
 	}
 	
 	public boolean getFacingLeft() {
-		return facingLeft;
+		return facingLeft;	
 	}
 
 	public void setFacingLeft(boolean facingLeft) {
 		this.facingLeft = facingLeft;
 	}
+	
+	public abstract boolean getGoingLeft();
+	public abstract boolean getGoingRight();
 	
 	
 	@Override
@@ -126,16 +129,15 @@ public abstract class WasabiCharacter implements Renderable, Advectable, Collida
 		batch.end();
 	}
 	
-
 	@Override
 	public boolean getOnGround() {
 		return onGround;
 	}
-
+	
 	@Override
 	public void setOnGround(boolean onGround) {
 		this.onGround = onGround; 
-	}	
+	}		
 	
 	@Override
 	public BoundingBox getBoundingBox() {
@@ -159,6 +161,10 @@ public abstract class WasabiCharacter implements Renderable, Advectable, Collida
 	
 	@Override
 	public void maybeUpdateAnimations() {
+		// Jump when on ground and starting to move up
+		if (!getOnGround() && getV().y > 0.0f) {
+			setAction(Action.JUMP);
+		}
 		
 		// Start falling action when falling!
 		if (!getOnGround() && getV().y < 0.0f) {
@@ -171,8 +177,13 @@ public abstract class WasabiCharacter implements Renderable, Advectable, Collida
 		}
 		
 		// If on ground and not pressing exactly one of {LEFT, RIGHT}, make idle.
-		if (getOnGround() && !(goingLeft ^ goingRight) && getV().y == 0.0f) {
+		if (getOnGround() && !(this.getGoingLeft() ^ this.getGoingRight()) && getV().y == 0.0f) {
 			setAction(Action.IDLE);
+		}		
+		
+		// Running is moving
+		if (getOnGround() && (this.getGoingLeft() ^ this.getGoingRight())) {
+			setAction(Action.RUN);
 		}
 	}	
 	

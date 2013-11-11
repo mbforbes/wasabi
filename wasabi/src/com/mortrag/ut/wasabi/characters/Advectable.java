@@ -12,6 +12,7 @@ public interface Advectable {
 	public Vector2 getV();
 	public Vector2 getA();	
 	
+	
 	/**
 	 * @return Whether this object should respond to collidable objects. If this is false and an
 	 * object moves, it would be like a ghost.

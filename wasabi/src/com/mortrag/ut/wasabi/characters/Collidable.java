@@ -11,8 +11,11 @@ import com.badlogic.gdx.math.collision.BoundingBox;
  *
  */
 public interface Collidable {
+	// On ground
 	public boolean getOnGround();
 	public void setOnGround(boolean onGround);
+
+	// Bounding boxes
 	public BoundingBox getBoundingBox();
 	public BoundingBox getPrevBoundingBox();
 	public void setPrevBoundingBox(BoundingBox b);

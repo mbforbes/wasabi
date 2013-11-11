@@ -17,6 +17,7 @@ public class ArmorEnemy extends Enemy implements Physicsable, Behaviorable {
 	
 	private Behavior behavior;
 	private float moveAccel;
+	private boolean goingLeft, goingRight;
 	
 	// ---------------------------------------------------------------------------------------------
 	// CONSTRUCTORS
@@ -31,7 +32,7 @@ public class ArmorEnemy extends Enemy implements Physicsable, Behaviorable {
 		addAnimationsToArmorEnemy(atlas);
 		setAction(Action.IDLE);
 		this.moveAccel = moveAccel;
-		behavior = new PatrolBehavior(1.0f, 4000.0f);
+		behavior = new PatrolBehavior(this, 1.0f, 4000.0f);
 	}
 	
 	// ---------------------------------------------------------------------------------------------
@@ -40,8 +41,10 @@ public class ArmorEnemy extends Enemy implements Physicsable, Behaviorable {
 		
 	
 	private void addAnimationsToArmorEnemy(TextureAtlas atlas) {
-		animations.put(Action.IDLE, new Animation(0.1f, Common.getFrames(atlas, "s_keisatsu"),
+		animations.put(Action.IDLE, new Animation(0.1f, Common.getFrames(atlas, "s_keiIdle"),
 				Animation.NORMAL));
+		animations.put(Action.RUN, new Animation(0.1f, Common.getFrames(atlas, "s_keiMarch"),
+				Animation.LOOP));		
 	}
 	
 	// ---------------------------------------------------------------------------------------------
@@ -68,7 +71,7 @@ public class ArmorEnemy extends Enemy implements Physicsable, Behaviorable {
 
 	@Override
 	public void tick(float delta) {
-		behavior.tick(this, delta);
+		behavior.tick(delta);
 	}
 
 	@Override
@@ -79,6 +82,21 @@ public class ArmorEnemy extends Enemy implements Physicsable, Behaviorable {
 	@Override
 	public float getMoveAccel() {
 		return moveAccel;
-	}	
-		
+	}
+	
+	public boolean getGoingLeft() {
+		return this.goingLeft;
+	}
+	
+	public void setGoingLeft(boolean goingLeft) {
+		this.goingLeft = goingLeft;
+	}
+	
+	public boolean getGoingRight() {
+		return this.goingRight;
+	}
+	
+	public void setGoingRight(boolean goingRight) {
+		this.goingRight = goingRight;
+	}
 }
