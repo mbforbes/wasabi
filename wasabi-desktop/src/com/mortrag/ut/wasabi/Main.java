@@ -12,8 +12,10 @@ public class Main {
 		// Texture packing ... shouldn't do this on the real game, but OK now
 		// for debug.
 		Settings packSettings = new Settings();
-		String textureInputDir = "../0_graphics/";
+		// Cooper default; run in Dropbox
+		String textureInputDir = "../0_graphics/"; 
 		if (args.length > 0) {
+			// Max defualt; run in specified directory
 			textureInputDir = args[0];
 		}
 		packSettings.stripWhitespaceX = true;
@@ -27,14 +29,17 @@ public class Main {
 		cfg.useGL20 = true;
 		cfg.vSyncEnabled = true;
 
-		// Fullscreen
-		cfg.width = Toolkit.getDefaultToolkit().getScreenSize().width;
-		cfg.height = Toolkit.getDefaultToolkit().getScreenSize().height;
-
-		// Smaller window
-		//cfg.width = 1024;
-		//cfg.height = 768;
-
+		// Window size
+		if (args.length > 1 && args[1].equals("fullscreen")) {
+			// Fullscreen (Max default)
+			cfg.width = Toolkit.getDefaultToolkit().getScreenSize().width;
+			cfg.height = Toolkit.getDefaultToolkit().getScreenSize().height;			
+		} else {
+			// Smaller window (Cooper default)
+			cfg.width = 1280;
+			cfg.height = 1024;			
+		}
+		
 		new LwjglApplication(new WasabiGame(), cfg);
 		// For camera testing
 		//new LwjglApplication(new OrthographicCameraController(), cfg);

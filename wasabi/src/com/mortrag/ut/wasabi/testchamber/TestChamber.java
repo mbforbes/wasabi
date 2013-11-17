@@ -104,7 +104,7 @@ public class TestChamber implements Screen {
 		this.map = map;
 		MapProperties mapProperties = map.getProperties();
 		levelWidth = (Float) mapProperties.get(Constants.MP.LEVEL_WIDTH);
-		levelHeight = (Float) mapProperties.get(Constants.MP.LEVEL_HEIGHT);
+		levelHeight = (Float) mapProperties.get(Constants.MP.LEVEL_HEIGHT);		
 		this.batch = batch;
 		this.atlas = atlas;
 		screenWidth = Gdx.graphics.getWidth();
@@ -134,11 +134,10 @@ public class TestChamber implements Screen {
 		advectables = new Array<Advectable>();
 		
 		// populate characters (TODO should be from level editor)
-		hero = new Hero(100f, 100f, atlas);
-		characters.add(hero);
-		characters.add(new Hero(200f, 200f, atlas));
-		characters.add(new Hero(300f, 300f, atlas));
+		Vector2 spawnPoint = (Vector2) mapProperties.get(Constants.MP.SPAWN_POINT);
 		
+		hero = new Hero(spawnPoint.x, spawnPoint.y, atlas);
+		characters.add(hero);
 		characters.add(new ArmorEnemy(400f, 400f, atlas));
 		
 		// now, populate other lists we care about from character list

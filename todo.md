@@ -1,13 +1,16 @@
 Features
-* Implement enemy collision mechanics (die, restart)
-
-* Implement level saving / loading (how to pickle? easy serialize?)
 
 * Implement collision / non-collision layers
 
-* Upgrade level editor UI for layer view, primitive buttons
-
 * Implement character layers (place hero, place enemies)
+
+* Implement level saving / loading (how to pickle? easy serialize?)
+
+* Modes: insert, edit, delete
+
+* Implement enemy collision mechanics (die, restart)
+
+* Upgrade level editor UI for layer view, primitive buttons
 
 * Implement attacking mechanic
 

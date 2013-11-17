@@ -37,7 +37,7 @@ public class TestChamber_MapRenderer implements MapRenderer {
 		layerIdxes = new int[numLayers];
 		for (int i = 0; i < numLayers; i++) {
 			layerIdxes[i] = i;
-		}		
+		}
 	}
 	
 	/**

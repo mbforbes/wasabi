@@ -12,5 +12,6 @@ public class Constants {
 		public static final String LEVEL_WIDTH = "LEVEL_WIDTH";
 		public static final String LEVEL_HEIGHT = "LEVEL_HEIGHT";
 		public static final String COLLIDABLE = "COLLIDABLE";
+		public static final String SPAWN_POINT = "SPAWN_POINT";
 	}
 }

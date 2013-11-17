@@ -23,6 +23,7 @@ import com.badlogic.gdx.maps.MapObjects;
 import com.badlogic.gdx.maps.MapProperties;
 import com.badlogic.gdx.maps.objects.TextureMapObject;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.mortrag.ut.wasabi.WasabiGame;
@@ -45,7 +46,7 @@ public class LevelEditor implements Screen {
 	public static final String NAME = "Level Editor";
 	
 	// private
-	private static final int GRID_SPACING = 20;
+	private static final int GRID_SPACING = 50;
 	private static final float ZOOM_DELTA = 0.02f;
 	private static final float ZOOM_LIMIT = 0.1f;
 	private static final float CAM_MOVE_SPEED = 5.0f;
@@ -159,8 +160,10 @@ public class LevelEditor implements Screen {
 
 	// TODO(max): UPDATE ALL CALLS AND DOCUMENTATION!
 	
+	
+	
 	/**
-	 * Saves current map and switches screen to test chamber.
+	 * Saves current map in java Obj and switches screen to test chamber.
 	 */
 	private void testMap() {		
 		// Save stuff in a map! Right now just very simple (one layer).
@@ -182,7 +185,7 @@ public class LevelEditor implements Screen {
 		MapProperties mapProperties = map.getProperties();
 		mapProperties.put(Constants.MP.LEVEL_WIDTH, level_width);
 		mapProperties.put(Constants.MP.LEVEL_HEIGHT, level_height);		
-		
+		mapProperties.put(Constants.MP.SPAWN_POINT, new Vector2(300, 300));
 		
 		// Load the test chamber if it hasn't been loaded, or update it.
 		TestChamber testChamber = null;
