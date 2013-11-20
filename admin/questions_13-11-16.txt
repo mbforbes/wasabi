@@ -1,0 +1,1 @@
+* Keep cur texture idx same when switching layers???

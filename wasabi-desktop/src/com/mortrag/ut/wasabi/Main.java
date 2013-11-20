@@ -6,6 +6,7 @@ import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
 import com.badlogic.gdx.tools.imagepacker.TexturePacker2;
 import com.badlogic.gdx.tools.imagepacker.TexturePacker2.Settings;
+import com.mortrag.ut.wasabi.test.KryoTest;
 
 public class Main {
 	public static void main(String[] args) {
@@ -40,8 +41,8 @@ public class Main {
 			cfg.height = 1024;			
 		}
 		
-		new LwjglApplication(new WasabiGame(), cfg);
-		// For camera testing
-		//new LwjglApplication(new OrthographicCameraController(), cfg);
+//		new LwjglApplication(new WasabiGame(), cfg);
+		new LwjglApplication(new KryoTest(), cfg);
+		
 	}
 }

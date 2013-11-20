@@ -1,10 +1,9 @@
 Features
-
-* Implement collision / non-collision layers
+* Implement level saving / loading (how to pickle? easy serialize?)
 
 * Implement character layers (place hero, place enemies)
 
-* Implement level saving / loading (how to pickle? easy serialize?)
+* Implement notifications / toast (likely in graphics.Common)
 
 * Modes: insert, edit, delete
 

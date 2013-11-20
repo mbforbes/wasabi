@@ -32,14 +32,16 @@ import com.mortrag.ut.wasabi.characters.Physicsable.Physics;
 import com.mortrag.ut.wasabi.characters.Physicsable;
 import com.mortrag.ut.wasabi.characters.WasabiCharacter;
 import com.mortrag.ut.wasabi.graphics.Common;
-import com.mortrag.ut.wasabi.graphics.WasabiTextureMapObject;
 import com.mortrag.ut.wasabi.input.Command;
 import com.mortrag.ut.wasabi.input.Controls;
 import com.mortrag.ut.wasabi.input.WasabiInput;
 import com.mortrag.ut.wasabi.input.WasabiInput.MouseState;
 import com.mortrag.ut.wasabi.leveleditor.LevelEditor;
+import com.mortrag.ut.wasabi.map.WasabiTextureMapObject;
 import com.mortrag.ut.wasabi.util.Constants;
+import com.mortrag.ut.wasabi.util.Constants.MP.LayerType;
 import com.mortrag.ut.wasabi.util.Debug;
+import com.mortrag.ut.wasabi.util.Pair;
 
 public class TestChamber implements Screen {
 	
@@ -80,8 +82,7 @@ public class TestChamber implements Screen {
 	private TestChamber_MapRenderer mapRenderer;
 	
 	// State
-	private boolean renderBoudningBoxes = true, paused = false, frameByFrame = false,
-			nextFrame = false;
+	private boolean paused = false, frameByFrame = false, nextFrame = false;
 	
 	// Characters!
 	private WasabiCharacter hero; // only for debug I think! (e.g. where is hero!)
@@ -89,7 +90,7 @@ public class TestChamber implements Screen {
 	private Array<Inputable.Input> inputs; // for use in handleCommands(...)
 	private Array<Physicsable> physicsables;
 	private Array<Advectable> advectables;
-	private Array<BoundingBox> boundaries;
+	private Array<BoundingBox> boundaries, characterBBs;
 	private Array<WasabiCharacter> characters;
 	private Array<Behaviorable> behaviorables;
 	
@@ -109,6 +110,7 @@ public class TestChamber implements Screen {
 		this.atlas = atlas;
 		screenWidth = Gdx.graphics.getWidth();
 		screenHeight = Gdx.graphics.getHeight();
+		shapeRenderer = new ShapeRenderer();
 		mainViewport = new Rectangle(0, 0, screenWidth, screenHeight);
 		mainCam = new OrthographicCamera(screenWidth, screenHeight);
 		mainCam.translate(screenWidth/ 2.0f, screenHeight / 2.0f, 0.0f);
@@ -118,12 +120,11 @@ public class TestChamber implements Screen {
 		overallCam.update();
 		controls = new TestChamber_Controls();
 		commandList = new Array<Command>();
-		mapRenderer = new TestChamber_MapRenderer(map, batch);
-		mapRenderer.setView((OrthographicCamera) mainCam);		
-		boundaries = new Array<BoundingBox>();		
+		mapRenderer = new TestChamber_MapRenderer(map, batch, shapeRenderer);
+		mapRenderer.setView((OrthographicCamera) mainCam);	
+		boundaries = new Array<BoundingBox>();
+		characterBBs = new Array<BoundingBox>();
 		updateBoundingBoxes(); // map collision layers
-		// shapes (e.g. bounding box lines)
-		shapeRenderer = new ShapeRenderer();
 		
 		// collections
 		characters = new Array<WasabiCharacter>();
@@ -181,7 +182,7 @@ public class TestChamber implements Screen {
 		Iterator<MapLayer> lit = map.getLayers().iterator();		
 		while (lit.hasNext()) {
 			MapLayer layer = lit.next();
-			if ((Boolean) layer.getProperties().get(Constants.MP.COLLIDABLE)) {
+			if (layer.getProperties().get(Constants.MP.LAYER_TYPE) == LayerType.COLLISION_FG) {
 				addBoundingBoxes(layer, boundaries);
 			}
 		}
@@ -243,7 +244,7 @@ public class TestChamber implements Screen {
 					inputs.add(Input.UP);
 					break;
 				case BOUNDING_BOXES:
-					renderBoudningBoxes = !renderBoudningBoxes;
+					mapRenderer.renderBoundingBoxes = !mapRenderer.renderBoundingBoxes;
 					break;
 				case FRAME_BY_FRAME:
 					frameByFrame = !frameByFrame;
@@ -290,6 +291,9 @@ public class TestChamber implements Screen {
 		}
 	}
 	
+	/**
+	 * "reset" A: forces accelerations to be zeroed out; recomputed each step
+	 */
 	private void zeroAccelerations() {
 		Iterator<Advectable> ait = advectables.iterator();
 		while (ait.hasNext()) {
@@ -297,9 +301,13 @@ public class TestChamber implements Screen {
 		}		
 	}
 	
+	/**
+	 * pre: zeroAccelerations()
+	 * @param delta
+	 */
 	private void advectWithCollisions(float delta) {
 		// debug info
-		Debug.debugText.append("Num collision boundaries: " + boundaries.size + Constants.NL);
+		Debug.debugLine("Num collision boundaries: " + boundaries.size);
 		
 		Iterator<Advectable> ait = advectables.iterator();
 		while (ait.hasNext()) {
@@ -312,9 +320,6 @@ public class TestChamber implements Screen {
 			a.scl(delta); 
 			v.add(a);
 			v.scl(delta);
-			
-			// "reset" A
-//			a.set(Vector2.Zero); // forces (accelerations) zeroed out; recomputed each step
 			
 			// clamp tiny values to 0
 			if ((v.x > 0.0f && v.x < Advectable.CLAMP_EPSILON) ||
@@ -406,32 +411,16 @@ public class TestChamber implements Screen {
 
 	/**
 	 * Render level and hero bounding boxes. Will have to generalize for enemies as well.
-	 * 
-	 * TODO(max): Slower framerate due to wasting all this memory destroys physics and everything
-	 * goes to hell. Solving the memory problem will probably fix this, but this does make me
-	 * wonder, if this is being played on a slower device or there are tones of objects, will
-	 * the physics always break when the framerate gets bad?
 	 */
-	private void renderBoundingBoxes() {
-		shapeRenderer.begin(ShapeType.Line);
-		shapeRenderer.setColor(1.0f, 0.0f, 0.0f, 0.7f);
-		
-		// Boundaries
-		Iterator<BoundingBox> bit = boundaries.iterator();
-		while (bit.hasNext()) {
-			BoundingBox b = bit.next();
-			shapeRenderer.rect(b.min.x, b.min.y, b.max.x - b.min.x, b.max.y - b.min.y);
+	private void renderCharacterBoundingBoxes() {
+		// update character BBs
+		characterBBs.clear();
+		for (int i = 0; i < characters.size; i++) {
+			characterBBs.add(characters.get(i).getBoundingBox());	
 		}
 		
-		// Characters
-		Iterator<WasabiCharacter> cit = characters.iterator();
-		while (cit.hasNext()) {
-			WasabiCharacter c = cit.next();
-			BoundingBox b = c.getBoundingBox();
-			shapeRenderer.rect(b.min.x, b.min.y, b.max.x - b.min.x, b.max.y - b.min.y);
-		}		
-		
-		shapeRenderer.end();
+		// render them
+		Common.renderBoundingBoxes(mainCam, shapeRenderer, characterBBs);
 	}
 
 	/**
@@ -495,10 +484,10 @@ public class TestChamber implements Screen {
 		gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 		
 		// Report hero stats
-		Debug.debugText.append("Hero P: " + hero.getP() + Constants.NL);
-		Debug.debugText.append("Hero V: " + hero.getV() + Constants.NL);
-		Debug.debugText.append("Hero A: " + hero.getA() + Constants.NL);
-		Debug.debugText.append("Hero on ground: " + hero.getOnGround() + Constants.NL);		
+		Debug.debugLine("Hero P: " + hero.getP());
+		Debug.debugLine("Hero V: " + hero.getV());
+		Debug.debugLine("Hero A: " + hero.getA());
+		Debug.debugLine("Hero on ground: " + hero.getOnGround());
 		
 		// Update cameras!
 		// Main cam:
@@ -510,7 +499,7 @@ public class TestChamber implements Screen {
 		mainCam.update();
 		batch.setProjectionMatrix(mainCam.combined);
 		shapeRenderer.setProjectionMatrix(mainCam.combined);
-		Debug.debugText.append("Camera pos: " + mainCam.position + Constants.NL);
+		Debug.debugLine("Camera pos: " + mainCam.position);
 		
 		// Overall (e.g. debug, pause) cam
 		overallCam.update();
@@ -519,9 +508,14 @@ public class TestChamber implements Screen {
 		gl.glViewport((int) mainViewport.x, (int) mainViewport.y, (int) mainViewport.width,
 				(int) mainViewport.height);
 		
-		// Render the map!
+		// Some counts for rendering...
+		int rendered = 0, total = 0;
+		
+		// Render the map background.
 		mapRenderer.setView((OrthographicCamera)mainCam);
-		mapRenderer.render();
+		Pair<Integer, Integer> counts = mapRenderer.renderBackgroundAndCount();
+		rendered += counts.first;
+		total += counts.second;
 		
 		// Render the characters!
 		Iterator<WasabiCharacter> cit = characters.iterator();
@@ -530,10 +524,16 @@ public class TestChamber implements Screen {
 			c.render(batch, delta);
 		}
 		
-		// Redner collision boundaries. Warning: currently EATS up memory. Debug only. Still should
-		// find a way to optimize.
-		if (Debug.DEBUG && renderBoudningBoxes) {
-			renderBoundingBoxes();
+		// Render the map background.
+		counts = mapRenderer.renderForegroundAndCount();		
+		rendered += counts.first;
+		total += counts.second;
+		
+		Debug.debugLine("Rendered " + rendered + " / " + total + " objects.");
+		
+		// Render character bounding boxes.
+		if (Debug.DEBUG && mapRenderer.renderBoundingBoxes) {
+			renderCharacterBoundingBoxes();
 		}
 		
 		// Paused overlay

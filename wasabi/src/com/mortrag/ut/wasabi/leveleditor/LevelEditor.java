@@ -1,6 +1,13 @@
 package com.mortrag.ut.wasabi.leveleditor;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.util.Iterator;
+
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
@@ -8,31 +15,31 @@ import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasRegion;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import com.badlogic.gdx.maps.Map;
 import com.badlogic.gdx.maps.MapLayer;
-import com.badlogic.gdx.maps.MapLayers;
-import com.badlogic.gdx.maps.MapObjects;
 import com.badlogic.gdx.maps.MapProperties;
 import com.badlogic.gdx.maps.objects.TextureMapObject;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 import com.mortrag.ut.wasabi.WasabiGame;
 import com.mortrag.ut.wasabi.graphics.Common;
-import com.mortrag.ut.wasabi.graphics.WasabiTextureMapObject;
 import com.mortrag.ut.wasabi.input.Command;
 import com.mortrag.ut.wasabi.input.Controls;
 import com.mortrag.ut.wasabi.input.WasabiInput;
 import com.mortrag.ut.wasabi.input.WasabiInput.MouseState;
+import com.mortrag.ut.wasabi.map.MapSerializers;
+import com.mortrag.ut.wasabi.map.WasabiMapRenderer;
+import com.mortrag.ut.wasabi.map.WasabiTextureMapObject;
 import com.mortrag.ut.wasabi.testchamber.TestChamber;
 import com.mortrag.ut.wasabi.util.Constants;
 import com.mortrag.ut.wasabi.util.Debug;
@@ -47,24 +54,30 @@ public class LevelEditor implements Screen {
 	
 	// private
 	private static final int GRID_SPACING = 50;
-	private static final float ZOOM_DELTA = 0.02f;
+	
+	private static final float ZOOM_DELTA = 0.05f;
 	private static final float ZOOM_LIMIT = 0.1f;
 	private static final float CAM_MOVE_SPEED = 5.0f;
 	private static final float SPRITE_MOVE_SPEED = 1.0f; // for pixel-perfect nudging
-	private static final float MAIN_VIEWPORT_WIDTH_FRAC = 0.75f; 
+	private static final float MAIN_VIEWPORT_WIDTH_FRAC = 0.75f;
+	
 
 	// --------------------------------------------------------------------------------------------
 	// MEMBERS
 	// --------------------------------------------------------------------------------------------
 	// Textures, sprites, shapes, fonts
 	private TextureAtlas atlas;
-	private Texture texture;
+	private Array<AtlasRegion> objectRegions, spriteRegions; // each img prefix (e.g. o_*, s_*, ...) 
 	private SpriteBatch batch;
-	private Array<Sprite> sprites, placedSprites;
-	private Array<Integer> placedSpriteIdxes;
-	private Sprite curSprite;
-	private int curSpriteNum;
 	private ShapeRenderer shapeRenderer;
+	// TODO(max): Have removed this by the end of the levelRewrite
+	private Array<Vector3> placedSpriteInfo;
+	
+	// Map
+	private Map map;
+	private int curLayerIdx;
+	private Vector2 curSpritePos;
+	private WasabiMapRenderer mapRenderer;
 	
 	// Viewports, Cameras, Window sizes
 	private Rectangle overall_viewport, main_viewport, minimap_viewport, detail_viewport;
@@ -79,11 +92,14 @@ public class LevelEditor implements Screen {
 	private Array<Command> commandList;
 	
 	// State (should make settings obj / map?)
-	private boolean paused = false;
-	private boolean drawGridlines = true;
-	private boolean snapToGrid = true;
+	private boolean paused = false, drawGridlines = true, snapToGrid = true, dirty = false;
+	private File savedFilename = null; // this is set when the user saves the file, unset w/ load
 	private MouseState mouseState;
 	private Vector3 mouseStateUnprojected;
+	
+	// saving & whatnot
+	private JFileChooser jFileChooser;
+	private Kryo kryo;
 
 	// --------------------------------------------------------------------------------------------
 	// CONSTRUCTORS
@@ -96,13 +112,14 @@ public class LevelEditor implements Screen {
 		w = Gdx.graphics.getWidth();
 		h = Gdx.graphics.getHeight();
 
-		// TODO(max): Set these in config.
 		level_width = 5000;
 		level_height = 5000;
 
+		// Bit shapes
+		shapeRenderer = new ShapeRenderer();		
+		
 		// Viewports are areas of the java window that have stuff rendered in them.
 		// Cameras project things to viewports. They can be zoomed and moved.
-		// -----------------------------------------------------------------------------------------
 		// Overall (whole window)
 		overall_viewport = new Rectangle(0, 0, w, h);
 		overall_cam = new OrthographicCamera(w, h);
@@ -124,69 +141,183 @@ public class LevelEditor implements Screen {
 		// Detail
 		detail_viewport = new Rectangle(main_width, 0, w - main_width, h - minimap_height);
 		detail_cam = new OrthographicCamera(w, h); // not sure what to set this to...
-
 		
 		// Drawing (sprite batches, textures, ...)
-		// -----------------------------------------------------------------------------------------		
 		batch = new SpriteBatch();
 		atlas = new TextureAtlas(Gdx.files.internal("../wasabi-android/assets/wasabi-atlas.atlas"));
-		sprites = getSpritesFromAtlas(atlas); // option 1: strip whitespace 
-		//sprites = atlas.createSprites(); // option 2: don't strip whitespace
-		placedSprites = new Array<Sprite>();
-		placedSpriteIdxes = new Array<Integer>();
-		curSpriteNum = 0;
-		curSprite = sprites.get(curSpriteNum);
-		//TextureAtlas.AtlasSprite as = (TextureAtlas.AtlasSprite) curSprite;
-		// CURSPOT (can remove region offset???)
-		curSprite.setPosition(0.0f, 0.0f);
+		Array<AtlasRegion> regions = atlas.getRegions();
+		objectRegions = getRegionsPrefix(regions, Constants.FD.OBJ_PREFIX);
+		spriteRegions = getRegionsPrefix(regions, Constants.FD.SPRITE_PREFIX);
+		placedSpriteInfo = new Array<Vector3>();
+		curLayerIdx = 0;
+		curSpritePos = new Vector2();
 		
-		
-		// Bit shapes
-		// -----------------------------------------------------------------------------------------
-		shapeRenderer = new ShapeRenderer();
-
+		// Map
+		setupEmptyMap();
+		// must be called after map made
+		mapRenderer = new LevelEditor_MapRenderer(map, batch, shapeRenderer); 
 		
 		// Input
-		// -----------------------------------------------------------------------------------------
 		commandList = new Array<Command>();
 		controls = new LevelEditor_Controls();
 		mouseStateUnprojected = new Vector3();
+		
+		// Saving / Loading
+		kryo = new Kryo();
+		MapSerializers.setup(kryo);
+		jFileChooser = new JFileChooser();
+				
 	}
 	
+	/**
+	 * Used in constructor.
+	 */
+	private Array<AtlasRegion> getRegionsPrefix(Array<AtlasRegion> regions, String prefix) {
+		Array<AtlasRegion> result = new Array<AtlasRegion>();
+		for(int i = 0; i < regions.size; i++) {
+			AtlasRegion cur = regions.get(i);
+			if (cur.name.startsWith(prefix)) {
+				result.add(cur);
+			}
+		}
+		return result;
+	}
+	
+	
+	/**
+	 * This is private, but really part of the constructor (so far). Just handles all map setting up
+	 * code.
+	 */
+	private void setupEmptyMap() {
+		map = new Map();
+		MapLayer layer;
+
+		// layer 0: not-collidable: background
+		layer = new LevelEditor_MapLayer(Constants.FD.OBJ_PREFIX, objectRegions);
+		layer.getProperties().put(Constants.MP.LAYER_TYPE, Constants.MP.LayerType.BG);
+		map.getLayers().add(layer);
+				
+		// layer 1: collidable: foreground
+		layer = new LevelEditor_MapLayer(Constants.FD.OBJ_PREFIX, objectRegions);
+		layer.getProperties().put(Constants.MP.LAYER_TYPE, Constants.MP.LayerType.COLLISION_FG);
+		map.getLayers().add(layer);
+		
+		// layer 2: not-collidable: foreground
+		layer = new LevelEditor_MapLayer(Constants.FD.OBJ_PREFIX, objectRegions);
+		layer.getProperties().put(Constants.MP.LAYER_TYPE, Constants.MP.LayerType.FG);
+		map.getLayers().add(layer);		
+		
+		// layer 3: place hero and enemy points
+		// TODO(max): this.
+		
+		
+		// Properties
+		MapProperties mp = map.getProperties();
+		mp.put(Constants.MP.LEVEL_WIDTH, level_width);
+		mp.put(Constants.MP.LEVEL_HEIGHT, level_height);		
+		mp.put(Constants.MP.SPAWN_POINT, new Vector2(300, 300));			
+	}	
 	
 	// --------------------------------------------------------------------------------------------
 	// PRIVATE METHODS
 	// --------------------------------------------------------------------------------------------
-
-	// TODO(max): UPDATE ALL CALLS AND DOCUMENTATION!
-	
 	
 	
 	/**
-	 * Saves current map in java Obj and switches screen to test chamber.
+	 * TODO(max): this
 	 */
-	private void testMap() {		
-		// Save stuff in a map! Right now just very simple (one layer).
-		Map map = new Map();
-		MapLayers mapLayers = map.getLayers();
-		MapLayer mapLayer = new MapLayer();
-		MapObjects mapObjects = mapLayer.getObjects();
-		Array<AtlasRegion> regions = atlas.getRegions();
-		for (int i = 0; i < placedSpriteIdxes.size; i++) {
-			Sprite sprite = placedSprites.get(i);
-			TextureRegion textureRegion = regions.get(placedSpriteIdxes.get(i));
-			TextureMapObject wasabiTextureMapObject = new WasabiTextureMapObject(textureRegion,
-					sprite.getX(), sprite.getY(), sprite.getWidth(), sprite.getHeight());
-			mapObjects.add(wasabiTextureMapObject);
+	private void saveMap() {
+		// If we're clean, there's nothing to save!
+		if (!dirty) {
+			return;
 		}
-		mapLayer.getProperties().put(Constants.MP.COLLIDABLE, true);
-		mapLayers.add(mapLayer);
-		// MapProperties are important
-		MapProperties mapProperties = map.getProperties();
-		mapProperties.put(Constants.MP.LEVEL_WIDTH, level_width);
-		mapProperties.put(Constants.MP.LEVEL_HEIGHT, level_height);		
-		mapProperties.put(Constants.MP.SPAWN_POINT, new Vector2(300, 300));
 		
+		// Otherwise, see if we've got a filename stored & get one if not
+		File fileToSave = null;
+		if (savedFilename == null) {
+			int rVal = jFileChooser.showSaveDialog(null);
+			if (rVal == JFileChooser.APPROVE_OPTION) {
+				fileToSave = jFileChooser.getSelectedFile();
+			} else {
+				// User canceled save--return!
+				return;
+			}
+		} else {
+			fileToSave = savedFilename;
+		}
+		
+		// At this point we're for sure doing the save
+		try {
+			Output output = new Output(new FileOutputStream(fileToSave));
+			kryo.writeObject(output, map); // TODO(max): This is a shot in the dark...
+			output.close();
+			
+			// clean (on freshly saved map) and track last file saved
+			dirty = false;
+			savedFilename = fileToSave;
+			Debug.print("Successfully wrote map to: " + fileToSave);
+		} catch (FileNotFoundException e) {
+			// TODO(max): Switch to Toast when this is implemented.
+			Debug.print(e);
+		}
+	}
+	
+	/**
+	 * TODO(max): test
+	 */
+	private void loadMap() {
+		// Confirm if saving first:
+		if (dirty) {
+			int confirmVal = JOptionPane.showOptionDialog(null,
+					"The level has been modified since last save. Save it before loading another?",
+					"Save before load?",
+					JOptionPane.YES_NO_CANCEL_OPTION,
+					JOptionPane.QUESTION_MESSAGE,
+					null, null, null);
+			switch (confirmVal) {
+			case JOptionPane.OK_OPTION:
+				saveMap();
+				break;
+			case JOptionPane.NO_OPTION:
+				// Do nothing--they don't want to save! We just continue with the load.
+				break;
+			case JOptionPane.CANCEL_OPTION:
+			default:
+				// We return--they didn't mean to load.
+				return;
+			}
+		}
+		
+		// If we've gotten here, we're going to try to load
+		int rVal = jFileChooser.showOpenDialog(null);
+		if (rVal == JFileChooser.APPROVE_OPTION) {
+			// They picked a file. OK!
+			File fileToSave = jFileChooser.getSelectedFile();
+			try {
+				Input input = new Input(new FileInputStream(fileToSave));				
+				Map newMap = kryo.readObject(input, Map.class);				
+				input.close();
+				
+				// Once we're here, we've presumably gotten a good new map!
+				map.dispose(); // TODO(max): Sure we want to do this? Probably expensive!
+				map = newMap;
+				mapRenderer.setMap(newMap);
+				
+				// clean (on freshly loaded map)!				
+				dirty = true;
+				savedFilename = null;
+				Debug.print("Successfully loaded map from: " + jFileChooser.getSelectedFile());				
+			} catch (FileNotFoundException e) {
+				// TODO(max): Switch to Toast when this is implemented.
+				Debug.print(e);
+			}
+		}
+	}	
+	
+	/**
+	 * Switches screen to test chamber.
+	 */
+	private void testMap() {	
 		// Load the test chamber if it hasn't been loaded, or update it.
 		TestChamber testChamber = null;
 		if (!game.screenLoaded(TestChamber.NAME)) {
@@ -203,28 +334,21 @@ public class LevelEditor implements Screen {
 		game.getAndSetScreen(TestChamber.NAME);
 	}
 	
-	/**
-	 * Returns sprites that KEEP THE GODDAMNED WHITESPACE STRIPPED.
-	 */
-	private Array<Sprite> getSpritesFromAtlas(TextureAtlas fullAtlas) {
-		Array<AtlasRegion> regions = fullAtlas.getRegions();
-		Array<Sprite> sprites = new Array<Sprite>(regions.size);
-		for (int i = 0; i < regions.size; i++) {
-			AtlasRegion r = regions.get(i);
-			sprites.add(new Sprite(r, 0, 0, r.packedWidth, r.packedHeight));
-		}
-		return sprites;
-	}
-	
 	private void placeSprite() {
-		Sprite placedSprite = new Sprite(curSprite);
-		placedSprites.add(placedSprite);
-		placedSpriteIdxes.add(curSpriteNum);
+		dirty = true;
+		// NOTE(max): In the future, will have swtich based on layer what this does (e.g. if
+		// placing spawn point for hero, can only be one.)
+		LevelEditor_MapLayer layer = (LevelEditor_MapLayer) map.getLayers().get(curLayerIdx); 
+		AtlasRegion curRegion = layer.regions.get(layer.curRegionIdx);
+		TextureMapObject newObj = new WasabiTextureMapObject(curRegion, curRegion.name,
+				curSpritePos.x, curSpritePos.y, curRegion.getRotatedPackedWidth(),
+				curRegion.getRotatedPackedHeight());
+		layer.getObjects().add(newObj);
 	}
 	
 	/**
 	 * Handle cursor press. (Place sprite.)
-	 * TODO(max): This behavior will change when the mouse is moved in other viewports! :-)
+	 * NOTE(max): This behavior will change when the mouse is moved in other viewports! :-)
 	 */
 	private void handleCursorPressed() {
 		// main window functionality
@@ -233,7 +357,7 @@ public class LevelEditor implements Screen {
 	
 	/**
 	 * Unprojected the mouse state from window space into world space of the main cam.
-	 * TODO(max): This behavior will change when the mouse is moved in other viewports! :-)
+	 * NOTE(max): This behavior will change when the mouse is moved in other viewports! :-)
 	 */
 	private void handleCursorMoved() {
 		mouseStateUnprojected.x = mouseState.x;
@@ -255,24 +379,28 @@ public class LevelEditor implements Screen {
 	}
 	
 	private void curSpriteMove(float xAmt, float yAmt) {
-		curSpriteSetPosition(curSprite.getX() + xAmt, curSprite.getY() + yAmt);
+		curSpriteSetPosition(curSpritePos.x + xAmt, curSpritePos.y + yAmt);
 	}
 	
 
 	private void curSpriteSetPosition(float newXReq, float newYReq) {
+		LevelEditor_MapLayer layer = (LevelEditor_MapLayer) map.getLayers().get(curLayerIdx);
+		AtlasRegion curRegion = layer.regions.get(layer.curRegionIdx);
+		float curW = curRegion.getRotatedPackedWidth(); 
+		float curH = curRegion.getRotatedPackedHeight(); 
 		float newX = newXReq;
 		float newY = newYReq;
 		
 		// Fix up out-of-bounds movements before moving.
 		if (newX < 0) {
 			newX = 0.0f;
-		} else if (newX + curSprite.getWidth() > level_width) {
-			newX = level_width - curSprite.getWidth();
+		} else if (newX + curW > level_width) {
+			newX = level_width - curW;
 		}
 		if (newY < 0) {
 			newY = 0.0f;
-		} else if (newY + curSprite.getHeight() > level_height) {
-			newY = level_height - curSprite.getHeight();
+		} else if (newY + curH > level_height) {
+			newY = level_height - curH;
 		}
 		
 		// Adjust if snapping to grid.
@@ -280,24 +408,40 @@ public class LevelEditor implements Screen {
 			newX = newX - newX % GRID_SPACING;
 			newY = newY - newY % GRID_SPACING;
 		}
-		curSprite.setPosition(newX, newY);
+		
+		// Finally do the actual setting
+		curSpritePos.set(newX, newY);
 	}
 	
 	private void renderSprites(Camera c) {
+		// everything we placed
+		mapRenderer.setView((OrthographicCamera) c);
+		mapRenderer.renderBackgroundAndCount();
+
+		// the one we're moving around
+		if (map.getLayers().get(curLayerIdx).getProperties().get(Constants.MP.LAYER_TYPE) ==
+				Constants.MP.LayerType.BG) {
+			// cur layer is background -- render it, then foreground
+			renderCurSprite(c);
+			mapRenderer.renderForegroundAndCount();			
+		} else {
+			// cur layer is foreground -- render foreground, then it
+			mapRenderer.renderForegroundAndCount();
+			renderCurSprite(c);
+		}
+	}
+	
+	/**
+	 * Render the one you're moving around.
+	 */
+	private void renderCurSprite(Camera c) {
 		batch.setProjectionMatrix(c.combined);
 		batch.begin();
-		// batch drawing group
-		{
-			// the ones we've placed
-			Iterator<Sprite> sit = placedSprites.iterator();
-			while (sit.hasNext()) {
-				sit.next().draw(batch);
-			}
-
-			// the one we're moving around
-			curSprite.draw(batch);
-		}
-		batch.end();
+		LevelEditor_MapLayer layer = (LevelEditor_MapLayer) map.getLayers().get(curLayerIdx);
+		AtlasRegion curRegion = layer.regions.get(layer.curRegionIdx);
+		batch.draw(curRegion, curSpritePos.x, curSpritePos.y, curRegion.getRotatedPackedWidth(),
+				curRegion.getRotatedPackedHeight());			
+		batch.end();		
 	}
 
 	private void drawEditorLines(Camera c) {
@@ -359,8 +503,10 @@ public class LevelEditor implements Screen {
 					break;
 				}
 			} else {
-				// Normal Level Editor command interpretation	
-				float newx, newy;
+				LevelEditor_MapLayer layer = (LevelEditor_MapLayer) map.getLayers().get(
+						curLayerIdx);
+				int numLayers = map.getLayers().getCount();
+				// Normal Level Editor command interpretation
 				switch(c) {
 				case CAMERA_RIGHT:
 					main_cam.translate(CAM_MOVE_SPEED, 0, 0);	
@@ -374,12 +520,14 @@ public class LevelEditor implements Screen {
 				case CAMERA_DOWN:
 					main_cam.translate(0, -CAM_MOVE_SPEED, 0);
 					break;
-				case CAMERA_ZOOM_IN:				
+				case CAMERA_ZOOM_IN_PRESS:
+				case CAMERA_ZOOM_IN_HOLD:
 					if (main_cam.zoom >= ZOOM_LIMIT) {
 						main_cam.zoom -= ZOOM_DELTA;
 					}
 					break;
-				case CAMERA_ZOOM_OUT:
+				case CAMERA_ZOOM_OUT_PRESS:
+				case CAMERA_ZOOM_OUT_HOLD:
 					main_cam.zoom += ZOOM_DELTA;
 					break;
 				case MOVE_RIGHT:
@@ -398,21 +546,12 @@ public class LevelEditor implements Screen {
 					pause();
 					break;
 				case NEXT_SPRITE:
-					newx = curSprite.getX();
-					newy = curSprite.getY();
-//					System.out.println("prev x/y: " + newx + "/" + newy);
-					curSpriteNum  = (curSpriteNum + 1) % (sprites.size - 1);
-					curSprite = sprites.get(curSpriteNum);
-					curSpriteSetPosition(newx, newy);
-//					System.out.println("new x/y: " + curSprite.getX() + "/" + curSprite.getY());
+					layer.curRegionIdx  = (layer.curRegionIdx + 1) % (layer.regions.size - 1);
 					break;
 				case PREVIOUS_SPRITE:
-					newx = curSprite.getX();
-					newy = curSprite.getY();
-					curSpriteNum = curSpriteNum == 0 ? sprites.size - 1 : curSpriteNum - 1;
-					curSprite = sprites.get(curSpriteNum);
-					curSpriteSetPosition(newx, newy);
-					break;					
+					layer.curRegionIdx = layer.curRegionIdx == 0 ? layer.regions.size - 1 :
+						layer.curRegionIdx - 1;
+					break;
 				case PLACE_SPRITE:
 					placeSprite();
 					break;
@@ -422,14 +561,29 @@ public class LevelEditor implements Screen {
 				case TOGGLE_SNAP_TO_GRID:
 					snapToGrid = !snapToGrid;
 					break;
+				case BOUNDING_BOXES:
+					mapRenderer.renderBoundingBoxes = !mapRenderer.renderBoundingBoxes;
+					break;
 				case CURSOR_MOVED:
 					handleCursorMoved();
 					break;
 				case PRESS_DOWN:
 					handleCursorPressed();
 					break;
+				case NEXT_LAYER:
+					curLayerIdx = curLayerIdx == numLayers - 1 ? 0 : curLayerIdx + 1;
+					break;
+				case PREV_LAYER:
+					curLayerIdx = curLayerIdx == 0 ? numLayers - 1 : curLayerIdx - 1;
+					break;
 				case TEST_MAP:
 					testMap();
+					break;
+				case SAVE_MAP:
+					saveMap();
+					break;
+				case LOAD_MAP:
+					loadMap();
 					break;
 				default:
 					// Do nothing.
@@ -487,6 +641,9 @@ public class LevelEditor implements Screen {
 			Common.drawPauseOverlay(overall_cam, batch, controls.getControlsList());
 		}
 		if (Debug.DEBUG) {
+			LevelEditor_MapLayer layer = (LevelEditor_MapLayer) map.getLayers().get(curLayerIdx);
+			Debug.debugLine("Layer: " + curLayerIdx);
+			Debug.debugLine("Current img: " + layer.regions.get(layer.curRegionIdx).name);
 			Common.displayFps(overall_cam, batch);
 		}
 	}
@@ -542,7 +699,7 @@ public class LevelEditor implements Screen {
 
 	@Override
 	public void hide() {
-		// TODO(max): Do we need to revoke the controls here?
+		// NOTE(max): Do we need to revoke the controls here?
 		//            Do we need to do anything else here?
 	}
 
@@ -560,8 +717,7 @@ public class LevelEditor implements Screen {
 	@Override
 	public void dispose() {
 		// so this never happens...
-		batch.dispose();
-		texture.dispose();
+		batch.dispose();		
 	}
 
 }

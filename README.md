@@ -5,6 +5,9 @@
 ### 11/16/2013
 * change cooper's screen resolution window to 1280 x 1024
 * change snap-to-grid size to 50
+* complete rewrite of level editor object mechanics; now: always maps, layers, objects
+* Implement collision / non-collision layers; bounding boxes now rendered only for collision layers
+* Implement bounding box rendering in level editor (B)
 
 ### 11/10/2013
 * Fix animation mapping bug (refactored movemet 'intent' to differentiate from user input and behavior 'force', while keeping mechanic the same).
