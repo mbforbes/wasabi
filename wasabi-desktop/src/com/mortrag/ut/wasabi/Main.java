@@ -36,8 +36,8 @@ public class Main {
 			cfg.height = Toolkit.getDefaultToolkit().getScreenSize().height;			
 		} else {
 			// Smaller window (Cooper default)
-			cfg.width = 1280;
-			cfg.height = 1024;			
+			cfg.width = 1024;
+			cfg.height = 768;			
 		}
 		
 		new LwjglApplication(new WasabiGame(), cfg);
