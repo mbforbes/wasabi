@@ -3,7 +3,7 @@
 ## Features
 
 ### 11/16/2013
-* change cooper's screen resolution window to 1280 x 1024
+* change cooper's screen resolution window to 1024 x 768
 * change snap-to-grid size to 50
 * complete rewrite of level editor object mechanics; now: always maps, layers, objects
 * Implement collision / non-collision layers; bounding boxes now rendered only for collision layers
