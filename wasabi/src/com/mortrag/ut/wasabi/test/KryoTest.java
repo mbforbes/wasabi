@@ -19,7 +19,6 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.FieldSerializer;
-import com.mortrag.ut.wasabi.serialization.MapObjectsSerializer;
 import com.mortrag.ut.wasabi.util.Debug;
 
 public class KryoTest extends Game implements ApplicationListener {
@@ -98,7 +97,6 @@ public class KryoTest extends Game implements ApplicationListener {
 		ser.removeField("textureRegion");		
 		kryo.register(MapObject.class, ser);
 		kryo.register(TextureMapObject.class, ser);
-		kryo.register(MapObjects.class, new MapObjectsSerializer());
 		
 		// Serialize to file
 		String filename = "test1.file";
@@ -179,6 +177,6 @@ public class KryoTest extends Game implements ApplicationListener {
 	@Override
 	public void create() {
 		testRemove();
-//		testRemove2();
+		testRemove2();
 	}
 }
