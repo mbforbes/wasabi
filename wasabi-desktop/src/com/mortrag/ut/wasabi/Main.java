@@ -41,8 +41,8 @@ public class Main {
 			cfg.height = 768;			
 		}
 		
-//		new LwjglApplication(new WasabiGame(), cfg);
-		new LwjglApplication(new KryoTest(), cfg);
+		new LwjglApplication(new WasabiGame(), cfg);
+//		new LwjglApplication(new KryoTest(), cfg);
 		
 	}
 }

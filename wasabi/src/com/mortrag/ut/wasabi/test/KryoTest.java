@@ -12,13 +12,14 @@ import com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasRegion;
 import com.badlogic.gdx.maps.Map;
 import com.badlogic.gdx.maps.MapLayer;
 import com.badlogic.gdx.maps.MapObject;
+import com.badlogic.gdx.maps.MapObjects;
 import com.badlogic.gdx.maps.objects.TextureMapObject;
 import com.badlogic.gdx.utils.Array;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.FieldSerializer;
-import com.mortrag.ut.wasabi.map.WasabiTextureMapObject;
+import com.mortrag.ut.wasabi.serialization.MapObjectsSerializer;
 import com.mortrag.ut.wasabi.util.Debug;
 
 public class KryoTest extends Game implements ApplicationListener {
@@ -73,6 +74,7 @@ public class KryoTest extends Game implements ApplicationListener {
 //		}		
 //	}
 	
+	
 	/**
 	 * Demonstrates that removeField(...) doesn't work.
 	 */
@@ -93,9 +95,10 @@ public class KryoTest extends Game implements ApplicationListener {
 		// setup custom serializer that doesn't try to serialize the complex obj
 		Kryo kryo = new Kryo();
 		FieldSerializer<TextureMapObject> ser = new FieldSerializer<TextureMapObject>(kryo, TextureMapObject.class);
-		ser.removeField("textureRegion");
-//		kryo.register(WasabiTextureMapObject.class, ser);
+		ser.removeField("textureRegion");		
+		kryo.register(MapObject.class, ser);
 		kryo.register(TextureMapObject.class, ser);
+		kryo.register(MapObjects.class, new MapObjectsSerializer());
 		
 		// Serialize to file
 		String filename = "test1.file";
@@ -112,7 +115,7 @@ public class KryoTest extends Game implements ApplicationListener {
 		Input input;
 		try {
 			input = new Input(new FileInputStream(filename));
-			MapLayer l2 = kryo.readObject(input, MapLayer.class);
+			MapLayer c2 = kryo.readObject(input, MapLayer.class);
 			input.close();
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -122,9 +125,60 @@ public class KryoTest extends Game implements ApplicationListener {
 		Debug.print("Success!");	
 	}
 	
+	public static class Container {
+		public Array<TestObject> testObjects = new Array<TestObject>();
+	}
+	public static class TestObject {
+		public NoNoargsConstructor noDefaultConstructor;
+	}
+	public static class NoNoargsConstructor {
+		public NoNoargsConstructor(float f){}
+	}
+	
+	/**
+	 * Minimal demonstration that removeField(...) doens't work.
+	 */
+	public static void testRemove2() {
+		// Create objects to serialize
+		TestObject obj = new TestObject();
+		obj.noDefaultConstructor = new NoNoargsConstructor(5.0f);
+		Container c = new Container();
+		c.testObjects.add(obj);
+		
+		// Remove field for serialization
+		Kryo kryo = new Kryo();
+		FieldSerializer<TestObject> ser = new FieldSerializer<TestObject>(kryo, TestObject.class);
+		ser.removeField("noDefaultConstructor");		
+		kryo.register(TestObject.class, ser);
+		
+		// Serialize to file
+		String filename = "test.file";
+		Output output;
+		try {
+			output = new Output(new FileOutputStream(filename));
+			kryo.writeObject(output, c);
+			output.close();				
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+		// De-serialize from file
+		Input input;
+		try {
+			input = new Input(new FileInputStream(filename));
+			Container c2 = kryo.readObject(input, Container.class);
+			input.close();
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}				
+	
+		// If we made it here, ohmygosh.
+		Debug.print("Success!");			
+	}
+	
 	@Override
 	public void create() {
 		testRemove();
-		
+//		testRemove2();
 	}
 }

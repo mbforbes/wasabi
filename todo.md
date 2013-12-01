@@ -1,6 +1,8 @@
 Features
 * Implement level saving / loading (how to pickle? easy serialize?)
 
+* Save-as
+
 * Implement character layers (place hero, place enemies)
 
 * Implement notifications / toast (likely in graphics.Common)

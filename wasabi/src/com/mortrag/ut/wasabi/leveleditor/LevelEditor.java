@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.util.HashMap;
 import java.util.Iterator;
 
 import javax.swing.JFileChooser;
@@ -22,6 +23,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import com.badlogic.gdx.maps.Map;
 import com.badlogic.gdx.maps.MapLayer;
+import com.badlogic.gdx.maps.MapObjects;
 import com.badlogic.gdx.maps.MapProperties;
 import com.badlogic.gdx.maps.objects.TextureMapObject;
 import com.badlogic.gdx.math.Rectangle;
@@ -31,13 +33,14 @@ import com.badlogic.gdx.utils.Array;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.kryo.serializers.FieldSerializer;
 import com.mortrag.ut.wasabi.WasabiGame;
 import com.mortrag.ut.wasabi.graphics.Common;
 import com.mortrag.ut.wasabi.input.Command;
 import com.mortrag.ut.wasabi.input.Controls;
 import com.mortrag.ut.wasabi.input.WasabiInput;
 import com.mortrag.ut.wasabi.input.WasabiInput.MouseState;
-import com.mortrag.ut.wasabi.map.MapSerializers;
+import com.mortrag.ut.wasabi.map.WasabiMap;
 import com.mortrag.ut.wasabi.map.WasabiMapRenderer;
 import com.mortrag.ut.wasabi.map.WasabiTextureMapObject;
 import com.mortrag.ut.wasabi.testchamber.TestChamber;
@@ -57,8 +60,8 @@ public class LevelEditor implements Screen {
 	
 	private static final float ZOOM_DELTA = 0.05f;
 	private static final float ZOOM_LIMIT = 0.1f;
-	private static final float CAM_MOVE_SPEED = 5.0f;
-	private static final float SPRITE_MOVE_SPEED = 1.0f; // for pixel-perfect nudging
+	private static final float CAM_MOVE_SPEED = 10.0f;
+	private static final float OBJECT_MOVE_SPEED = 1.0f; // for pixel-perfect nudging
 	private static final float MAIN_VIEWPORT_WIDTH_FRAC = 0.75f;
 	
 
@@ -68,13 +71,14 @@ public class LevelEditor implements Screen {
 	// Textures, sprites, shapes, fonts
 	private TextureAtlas atlas;
 	private Array<AtlasRegion> objectRegions, spriteRegions; // each img prefix (e.g. o_*, s_*, ...) 
+	java.util.Map<String, Array<AtlasRegion>> regionMap; // maps Constants.FD.*_PREFIX -> *Regions
 	private SpriteBatch batch;
 	private ShapeRenderer shapeRenderer;
 	// TODO(max): Have removed this by the end of the levelRewrite
 	private Array<Vector3> placedSpriteInfo;
 	
 	// Map
-	private Map map;
+	private WasabiMap map;
 	private int curLayerIdx;
 	private Vector2 curSpritePos;
 	private WasabiMapRenderer mapRenderer;
@@ -145,9 +149,16 @@ public class LevelEditor implements Screen {
 		// Drawing (sprite batches, textures, ...)
 		batch = new SpriteBatch();
 		atlas = new TextureAtlas(Gdx.files.internal("../wasabi-android/assets/wasabi-atlas.atlas"));
+		
+		// regions
 		Array<AtlasRegion> regions = atlas.getRegions();
+		regionMap = new HashMap<String, Array<AtlasRegion>>();
 		objectRegions = getRegionsPrefix(regions, Constants.FD.OBJ_PREFIX);
+		regionMap.put(Constants.FD.OBJ_PREFIX, objectRegions);
 		spriteRegions = getRegionsPrefix(regions, Constants.FD.SPRITE_PREFIX);
+		regionMap.put(Constants.FD.SPRITE_PREFIX, spriteRegions);
+		
+		
 		placedSpriteInfo = new Array<Vector3>();
 		curLayerIdx = 0;
 		curSpritePos = new Vector2();
@@ -164,7 +175,19 @@ public class LevelEditor implements Screen {
 		
 		// Saving / Loading
 		kryo = new Kryo();
-		MapSerializers.setup(kryo);
+		
+		// Remove textureRegion from WasabiTextureMapObject
+		FieldSerializer<WasabiTextureMapObject> objSer = new
+				FieldSerializer<WasabiTextureMapObject>(kryo, WasabiTextureMapObject.class);
+		objSer.removeField("textureRegion");
+		kryo.register(WasabiTextureMapObject.class, objSer);
+		
+		// Make Array serialization work by removing stupid transient fields.
+		FieldSerializer<Array<MapLayer>> arraySer = new FieldSerializer<Array<MapLayer>>(kryo, Array.class);
+		arraySer.removeField("iterable");
+		arraySer.removeField("predicateIterable");
+		kryo.register(Array.class, arraySer);
+		
 		jFileChooser = new JFileChooser();
 				
 	}
@@ -189,7 +212,7 @@ public class LevelEditor implements Screen {
 	 * code.
 	 */
 	private void setupEmptyMap() {
-		map = new Map();
+		map = new WasabiMap();
 		MapLayer layer;
 
 		// layer 0: not-collidable: background
@@ -249,7 +272,7 @@ public class LevelEditor implements Screen {
 		// At this point we're for sure doing the save
 		try {
 			Output output = new Output(new FileOutputStream(fileToSave));
-			kryo.writeObject(output, map); // TODO(max): This is a shot in the dark...
+			kryo.writeClassAndObject(output, map);
 			output.close();
 			
 			// clean (on freshly saved map) and track last file saved
@@ -294,9 +317,12 @@ public class LevelEditor implements Screen {
 			// They picked a file. OK!
 			File fileToSave = jFileChooser.getSelectedFile();
 			try {
-				Input input = new Input(new FileInputStream(fileToSave));				
-				Map newMap = kryo.readObject(input, Map.class);				
+				Input input = new Input(new FileInputStream(fileToSave));
+				WasabiMap newMap = (WasabiMap) kryo.readClassAndObject(input);
 				input.close();
+				
+				// Setup the new map
+				newMap.initialize(atlas, regionMap);
 				
 				// Once we're here, we've presumably gotten a good new map!
 				map.dispose(); // TODO(max): Sure we want to do this? Probably expensive!
@@ -374,7 +400,7 @@ public class LevelEditor implements Screen {
 	 */	
 	private void curSpriteNudge(int xMove, int yMove) {
 		// Calculate move speed and do tentative translation.
-		float moveSpeed = snapToGrid ? GRID_SPACING : SPRITE_MOVE_SPEED;
+		float moveSpeed = snapToGrid ? GRID_SPACING : OBJECT_MOVE_SPEED;
 		curSpriteMove(((float) xMove) * moveSpeed, ((float) yMove) * moveSpeed);
 	}
 	
