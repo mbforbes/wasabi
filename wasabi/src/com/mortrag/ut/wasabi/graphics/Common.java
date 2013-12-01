@@ -12,11 +12,14 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.BitmapFont.HAlignment;
+import com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasRegion;
+import com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasSprite;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.Array;
 import com.mortrag.ut.wasabi.characters.WasabiCharacter;
@@ -141,5 +144,23 @@ public class Common {
 		}
 		
 		sr.end();		
+	}
+	
+	public static void getTextureWH(TextureRegion tex, Vector2 out) {
+		// If we use getRegion* on a packed (whitespace stripped) sprite, then we get
+		// the compressed width, when we want the full one (as all frames of an
+		// animation are set to the same W and H for consistent bounding boxes and
+		// animation).
+
+		if (tex instanceof AtlasSprite) {
+			out.x = ((AtlasSprite) tex).getWidth();
+			out.y = ((AtlasSprite) tex).getHeight();
+		} else if (tex instanceof AtlasRegion) {
+			out.x = ((AtlasRegion) tex).getRotatedPackedWidth();
+			out.y = ((AtlasRegion) tex).getRotatedPackedHeight();
+		} else {
+			out.x = tex.getRegionWidth();
+			out.y = tex.getRegionHeight();
+		}		
 	}
 }

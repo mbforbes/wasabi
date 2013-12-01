@@ -15,6 +15,7 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.Array;
 import com.mortrag.ut.wasabi.graphics.Common;
+import com.mortrag.ut.wasabi.leveleditor.LevelEditor_MapLayer;
 import com.mortrag.ut.wasabi.util.Constants;
 import com.mortrag.ut.wasabi.util.Constants.MP.LayerType;
 import com.mortrag.ut.wasabi.util.Pair;
@@ -26,8 +27,8 @@ public class WasabiMapRenderer implements MapRenderer {
 	public ShapeRenderer shapeRenderer = null;
 	
 	// private
-	private int[] layerIdxes, bgLayerIdxes, fgLayerIdxes;
-	private Array<Integer> bgLayerIdxesArr, fgLayerIdxesArr;
+	private int[] layerIdxes, bgLayerIdxes, fgLayerIdxes, charLayerIdxes;
+	private Array<Integer> bgLayerIdxesArr, fgLayerIdxesArr, charLayerIdxesArr;
 	private Array<BoundingBox> boundingBoxes;
 	private int savedLayerCount = 0;
 	private Pair<Integer, Integer> renderedAndTotal;
@@ -48,6 +49,7 @@ public class WasabiMapRenderer implements MapRenderer {
 		renderedAndTotal = new Pair<Integer,Integer>(0,0);
 		bgLayerIdxesArr = new Array<Integer>();
 		fgLayerIdxesArr = new Array<Integer>();
+		charLayerIdxesArr = new Array<Integer>();
 		boundingBoxes = new Array<BoundingBox>();
 	}
 	
@@ -65,6 +67,7 @@ public class WasabiMapRenderer implements MapRenderer {
 			layerIdxes = new int[trueLayerCount];
 			bgLayerIdxesArr.clear();
 			fgLayerIdxesArr.clear();
+			charLayerIdxesArr.clear();
 			
 			for (int i = 0; i < trueLayerCount; i++) {
 				// check bg vs fg; note if not either, then not added to either.
@@ -74,9 +77,12 @@ public class WasabiMapRenderer implements MapRenderer {
 				case BG:
 					bgLayerIdxesArr.add(i);
 					break;
-				case COLLISION_FG: // fall through									
+				case COLLISION_FG: // fall through
 				case FG:
 					fgLayerIdxesArr.add(i);
+					break;
+				case CHARACTERS:
+					charLayerIdxesArr.add(i);
 					break;
 				}
 				// save index
@@ -86,6 +92,7 @@ public class WasabiMapRenderer implements MapRenderer {
 			// make bg and fg arrays
 			bgLayerIdxes = fillIntArr(bgLayerIdxesArr);
 			fgLayerIdxes = fillIntArr(fgLayerIdxesArr);
+			charLayerIdxes = fillIntArr(charLayerIdxesArr);
 			
 			// save that we did this so we don't have to recompute!
 			savedLayerCount = trueLayerCount;
@@ -102,31 +109,47 @@ public class WasabiMapRenderer implements MapRenderer {
 	}
 	
 	/**
-	 * 
+	 * before calling: spriteBatch.begin() must have been called
+	 * after calling: you must call spriteBatch.end() 
 	 * @param mapObject
 	 * @return how many objects were rendered
 	 */
-	private int renderObject(MapObject mapObject, boolean collectBoundingBoxes) {
-		int rendered = 0;
-		if (mapObject instanceof WasabiTextureMapObject) {
-			WasabiTextureMapObject obj = (WasabiTextureMapObject) mapObject;
+	private int renderObject(MapObject mapObject, boolean collectBoundingBoxes, float time) {
+		if (mapObject instanceof WasabiMapObject) {
+			// Get and check dimensions; only draw if some part of it will be displayed on the
+			// screen. 
+			WasabiMapObject obj = (WasabiMapObject) mapObject; 
 			float objx = obj.getX();
 			float objy = obj.getY();
 			float objw = obj.getWidth();
 			float objh = obj.getHeight();
-			// Only draw if some part of it will be displayed on the screen.
-			if (!(objx + objw < leftedge || objx > rightedge || objy > topedge ||
-					objy + objh < bottomedge)) {
-				spriteBatch.draw(obj.getTextureRegion(), obj.getX(), obj.getY());
-				rendered++;
+			if (objx + objw < leftedge || objx > rightedge || objy > topedge ||
+					objy + objh < bottomedge) {
+				return 0;
 			}
-			if (collectBoundingBoxes) {
-				boundingBoxes.add(obj.getBoundingBox());
+	
+			// Find the true type and draw.
+			if (mapObject instanceof WasabiTextureMapObject) {
+				// WasabiTextureMapObject
+				WasabiTextureMapObject texObj = (WasabiTextureMapObject) mapObject;
+				spriteBatch.draw(texObj.getTextureRegion(), objx, objy);
+				if (collectBoundingBoxes) {
+					boundingBoxes.add(texObj.getBoundingBox());
+				}
+				return 1;
+			} else if (mapObject instanceof AnimatedMapObject) {
+				// AnimatedMapObject
+				AnimatedMapObject animObj = (AnimatedMapObject) mapObject;
+				spriteBatch.draw(animObj.getCurFrame(time), objx, objy);
+				return 1;
+			} else {
+				// Not rendering any other WasabiMapObject's
+				return 0;
 			}
 		} else {
-			// Not rendering anything else for now...
+			// Not rendering any other MapObject's
+			return 0;
 		}
-		return rendered;
 	}
 	
 	@Override
@@ -174,12 +197,19 @@ public class WasabiMapRenderer implements MapRenderer {
 					LayerType.COLLISION_FG;
 			// If the layer is visible
 			if (layer.isVisible()) {
+				float time = 0.0f;
+				if (layer instanceof LevelEditor_MapLayer) {
+					time = ((LevelEditor_MapLayer) layer).getTime();
+				}
 				Iterator<MapObject> oit = layer.getObjects().iterator();
 				total += layer.getObjects().getCount();
 				// For all objects
 				while (oit.hasNext()) {
 					MapObject mapObject = oit.next();
-					rendered += renderObject(mapObject, collides);
+					// If the object is visible
+					if (mapObject.isVisible()) {						
+						rendered += renderObject(mapObject, collides, time);
+					}
 				}
 			}			
 		}
@@ -202,6 +232,11 @@ public class WasabiMapRenderer implements MapRenderer {
 		maybeRecomputeLayerIdxes(); // Always do this before using layerIdxes
 		return renderAndCount(bgLayerIdxes);
 	}
+	
+	public Pair<Integer, Integer> renderCharactersAndCount() {
+		maybeRecomputeLayerIdxes(); // Always do this before using layerIdxes
+		return renderAndCount(charLayerIdxes);
+	}	
 	
 	/**
 	 * Note: we assume that any collision layers are in the foreground.

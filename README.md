@@ -3,6 +3,7 @@
 ## Features
 
 ### 11/30/2013
+* Implement character layers (place hero, place enemies). This involved another rewrite of a portion of level editor (temp 'next' objects added to layers, added/removed when saving/testing). Still bugs. :-(
 * Implement level saving / loading
 * Smart save/load (no prompt if working on same file, prompt if changes, reset settings on load)
 

@@ -26,7 +26,8 @@ public interface Initializable {
 		 * @param atlas passed to the MapObjects
 		 * @param regionMap for this MapLayer
 		 */
-		public void initialize(TextureAtlas atlas, Map<String, Array<AtlasRegion>> regionMap);
+		public void initialize(TextureAtlas atlas, Map<String, Array<AtlasRegion>> regionMap,
+				Array<WasabiAnimation> wasabiAnimations);
 	}
 	
 	/**

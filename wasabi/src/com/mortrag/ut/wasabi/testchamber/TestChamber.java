@@ -10,7 +10,6 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import com.badlogic.gdx.maps.Map;
 import com.badlogic.gdx.maps.MapLayer;
 import com.badlogic.gdx.maps.MapObject;
@@ -37,6 +36,7 @@ import com.mortrag.ut.wasabi.input.Controls;
 import com.mortrag.ut.wasabi.input.WasabiInput;
 import com.mortrag.ut.wasabi.input.WasabiInput.MouseState;
 import com.mortrag.ut.wasabi.leveleditor.LevelEditor;
+import com.mortrag.ut.wasabi.map.WasabiMapObject;
 import com.mortrag.ut.wasabi.map.WasabiTextureMapObject;
 import com.mortrag.ut.wasabi.util.Constants;
 import com.mortrag.ut.wasabi.util.Constants.MP.LayerType;
@@ -85,7 +85,7 @@ public class TestChamber implements Screen {
 	private boolean paused = false, frameByFrame = false, nextFrame = false;
 	
 	// Characters!
-	private WasabiCharacter hero; // only for debug I think! (e.g. where is hero!)
+	private WasabiCharacter hero; // only for debug and camera! (where hero is)
 	private Array<Inputable> inputables;
 	private Array<Inputable.Input> inputs; // for use in handleCommands(...)
 	private Array<Physicsable> physicsables;
@@ -134,12 +134,61 @@ public class TestChamber implements Screen {
 		physicsables = new Array<Physicsable>();
 		advectables = new Array<Advectable>();
 		
-		// populate characters (TODO should be from level editor)
-		Vector2 spawnPoint = (Vector2) mapProperties.get(Constants.MP.SPAWN_POINT);
+		populateCharacters();
+	}
+	
+	// ---------------------------------------------------------------------------------------------
+	// EXTERNAL API (aside from auto-called stuff)
+	// ---------------------------------------------------------------------------------------------
+	
+	public void setMap(Map map) {
+		this.map = map;
+		MapProperties mapProperties = map.getProperties();
+		levelWidth = (Float) mapProperties.get(Constants.MP.LEVEL_WIDTH);
+		levelHeight = (Float) mapProperties.get(Constants.MP.LEVEL_HEIGHT);
+		mapRenderer.setMap(map);
+		updateBoundingBoxes();
+		populateCharacters();
+	}
+	
+	// ---------------------------------------------------------------------------------------------
+	// PRIVATE
+	// ---------------------------------------------------------------------------------------------
+	
+	/**
+	 * Should be called on construction and on map change.
+	 */
+	private void populateCharacters() {
+		// clear any previous arrays
+		characters.clear();
+		inputables.clear();
+		physicsables.clear();
+		advectables.clear();
+		behaviorables.clear();
 		
-		hero = new Hero(spawnPoint.x, spawnPoint.y, atlas);
-		characters.add(hero);
-		characters.add(new ArmorEnemy(400f, 400f, atlas));
+		// get layer with character types
+		MapLayer layer = null;
+		for (int i = 0; i < map.getLayers().getCount(); i++) {
+			MapLayer curLayer = map.getLayers().get(i);
+			if (curLayer.getProperties().get(Constants.MP.LAYER_TYPE, Constants.MP.LayerType.class)
+					== Constants.MP.LayerType.CHARACTERS) {
+				layer = curLayer;
+				break;
+			}
+		}
+		
+		// get objects out of layer!
+		for (int i = 0; i < layer.getObjects().getCount(); i++) {
+			WasabiMapObject curObj = (WasabiMapObject) layer.getObjects().get(i);
+			if (curObj.getName().equals(Constants.ON.SPAWN_POINT)) {
+				hero = new Hero(curObj.getX(), curObj.getY(), atlas);
+				characters.add(hero);
+			} else if (curObj.getName().equals(Constants.ON.ARMOR_ENEMY)) {
+				characters.add(new ArmorEnemy(curObj.getX(), curObj.getY(), atlas));
+			} else {
+				// that's all the charaaceters we've implemented...
+			}
+		}
 		
 		// now, populate other lists we care about from character list
 		Iterator<WasabiCharacter> cit = characters.iterator();
@@ -157,25 +206,8 @@ public class TestChamber implements Screen {
 			if (c instanceof Behaviorable) {
 				behaviorables.add((Behaviorable) c);
 			}
-		}
+		}		
 	}
-	
-	// ---------------------------------------------------------------------------------------------
-	// EXTERNAL API (aside from auto-called stuff)
-	// ---------------------------------------------------------------------------------------------
-	
-	public void setMap(Map map) {
-		this.map = map;
-		MapProperties mapProperties = map.getProperties();
-		levelWidth = (Float) mapProperties.get(Constants.MP.LEVEL_WIDTH);
-		levelHeight = (Float) mapProperties.get(Constants.MP.LEVEL_HEIGHT);
-		mapRenderer.setMap(map);
-		updateBoundingBoxes();
-	}
-	
-	// ---------------------------------------------------------------------------------------------
-	// PRIVATE
-	// ---------------------------------------------------------------------------------------------
 	
 	private void updateBoundingBoxes() {
 		boundaries.clear();
@@ -410,7 +442,7 @@ public class TestChamber implements Screen {
 	
 
 	/**
-	 * Render level and hero bounding boxes. Will have to generalize for enemies as well.
+	 * Render level and character bounding boxes.
 	 */
 	private void renderCharacterBoundingBoxes() {
 		// update character BBs

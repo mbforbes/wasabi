@@ -3,19 +3,25 @@ package com.mortrag.ut.wasabi.map;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.maps.objects.TextureMapObject;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
+import com.mortrag.ut.wasabi.graphics.Common;
 import com.mortrag.ut.wasabi.map.Initializable.ObjectInitializable;
 import com.mortrag.ut.wasabi.util.Constants;
 
-public class WasabiTextureMapObject extends TextureMapObject implements ObjectInitializable {
+public class WasabiTextureMapObject extends TextureMapObject implements ObjectInitializable, WasabiMapObject {
 	private float width;
 	private float height;
 	private BoundingBox boundingBox;
 	private String regionName;
+	private boolean bbdirty;
+	
+	private transient Vector2 cachedWHComp = new Vector2();
 	
 	// for kryo
 	private transient boolean initialized = false;
+	
 	
 	public WasabiTextureMapObject(TextureRegion textureRegion, String regionName, float x, float y,
 			float width, float height) {
@@ -27,6 +33,7 @@ public class WasabiTextureMapObject extends TextureMapObject implements ObjectIn
 		setRegionName(regionName);
 		boundingBox = new BoundingBox(new Vector3(x, y, 0.0f),
 				new Vector3(x + width, y + height, Constants.BB_ZMAX));
+		bbdirty = false;
 		initialized = true;
 	}
 	
@@ -37,6 +44,7 @@ public class WasabiTextureMapObject extends TextureMapObject implements ObjectIn
 	 */
 	public WasabiTextureMapObject() {
 		super(); // this already happens--just doing it explicitly as a reminder.
+		bbdirty = true;
 	}
 	
 	/**
@@ -78,15 +86,48 @@ public class WasabiTextureMapObject extends TextureMapObject implements ObjectIn
 	 * @return the original, non-updated BoundingBox
 	 */
 	public BoundingBox getBoundingBox() {
+		if (bbdirty) {
+			float x = this.getX(), y = this.getY();
+			boundingBox.min.set(x, y, 0.0f);
+			boundingBox.max.set(x + width, y + height, Constants.BB_ZMAX);
+			boundingBox.set(boundingBox.min, boundingBox.max);
+		}
 		return boundingBox;
 	}
 	
 	public void setWidth(float width) {
-		this.width = width;
+		if (this.width != width) {
+			this.width = width;
+			bbdirty = true;
+		}
 	}
 	
 	public void setHeight(float height) {
-		this.height = height;
+		if (this.height != height) {
+			this.height = height;
+			bbdirty = true;			
+		}
+	}
+	
+	@Override
+	public void setX(float x) {
+		super.setX(x);
+		bbdirty = true;
+	}
+	
+	@Override
+	public void setY(float y) {
+		super.setY(y);
+		bbdirty = true;
+	}
+	
+	@Override
+	public void setTextureRegion(TextureRegion tex) {
+		super.setTextureRegion(tex);
+		Common.getTextureWH(tex, cachedWHComp);
+		this.setWidth(cachedWHComp.x);
+		this.setHeight(cachedWHComp.y);
+		bbdirty = true;
 	}
 	
 	public void setRegionName(String regionName) {
