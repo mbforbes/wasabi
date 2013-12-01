@@ -2,6 +2,10 @@
 
 ## Features
 
+### 11/30/2013
+* Implement level saving / loading
+* Smart save/load (no prompt if working on same file, prompt if changes, reset settings on load)
+
 ### 11/16/2013
 * change cooper's screen resolution window to 1024 x 768
 * change snap-to-grid size to 50
