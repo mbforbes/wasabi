@@ -3,7 +3,11 @@ package com.mortrag.ut.wasabi.map;
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.utils.Array;
-
+/**
+ * 
+ * @author max
+ *
+ */
 public class WasabiAnimation {
 	
 	private String framePrefix, objectName;
@@ -14,12 +18,11 @@ public class WasabiAnimation {
 	private transient Animation animation;
 	
 	public WasabiAnimation(Array<? extends TextureRegion> frames, String framePrefix,
-			float frameDuration, int animationType, String objectName) {
+			float frameDuration, int animationType) {
 		this.animation = new Animation(frameDuration, frames, animationType);
 		this.framePrefix = framePrefix;
 		this.frameDuration = frameDuration;
 		this.animationType = animationType;
-		this.objectName = objectName;
 	}
 	
 	/**
@@ -46,9 +49,5 @@ public class WasabiAnimation {
 	
 	public int getAnimationType() {
 		return animationType;
-	}
-	
-	public String getObjectName() {
-		return objectName;
 	}
 }

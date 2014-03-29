@@ -17,18 +17,22 @@ import com.badlogic.gdx.utils.Array;
 import com.mortrag.ut.wasabi.graphics.Common;
 import com.mortrag.ut.wasabi.leveleditor.LevelEditor_MapLayer;
 import com.mortrag.ut.wasabi.util.Constants;
-import com.mortrag.ut.wasabi.util.Constants.MP.LayerType;
+import com.mortrag.ut.wasabi.util.Debug;
 import com.mortrag.ut.wasabi.util.Pair;
 
 public class WasabiMapRenderer implements MapRenderer {
 
+	public enum Mode {
+		EDITOR,
+		GAME;
+	}
+	
 	// public settings with defaults
 	public boolean renderBoundingBoxes = true;
 	public ShapeRenderer shapeRenderer = null;
+	public Mode mode = Mode.EDITOR;
 	
 	// private
-	private int[] layerIdxes, bgLayerIdxes, fgLayerIdxes, charLayerIdxes;
-	private Array<Integer> bgLayerIdxesArr, fgLayerIdxesArr, charLayerIdxesArr;
 	private Array<BoundingBox> boundingBoxes;
 	private int savedLayerCount = 0;
 	private Pair<Integer, Integer> renderedAndTotal;
@@ -47,9 +51,6 @@ public class WasabiMapRenderer implements MapRenderer {
 		this.spriteBatch = spriteBatch;
 		viewBounds = new Rectangle();
 		renderedAndTotal = new Pair<Integer,Integer>(0,0);
-		bgLayerIdxesArr = new Array<Integer>();
-		fgLayerIdxesArr = new Array<Integer>();
-		charLayerIdxesArr = new Array<Integer>();
 		boundingBoxes = new Array<BoundingBox>();
 	}
 	
@@ -58,63 +59,12 @@ public class WasabiMapRenderer implements MapRenderer {
 	}
 	
 	/**
-	 * Always do this before using *layerIdxes. Note: we are assuming a layer's foregroundness or
-	 * backgroundness is immutable!
-	 */
-	private void maybeRecomputeLayerIdxes() {
-		int trueLayerCount = map.getLayers().getCount();
-		if (savedLayerCount != trueLayerCount) {
-			layerIdxes = new int[trueLayerCount];
-			bgLayerIdxesArr.clear();
-			fgLayerIdxesArr.clear();
-			charLayerIdxesArr.clear();
-			
-			for (int i = 0; i < trueLayerCount; i++) {
-				// check bg vs fg; note if not either, then not added to either.
-				MapProperties layerProperties = map.getLayers().get(i).getProperties();
-				LayerType layerType = (LayerType) layerProperties.get(Constants.MP.LAYER_TYPE);
-				switch (layerType) {
-				case BG:
-					bgLayerIdxesArr.add(i);
-					break;
-				case COLLISION_FG: // fall through
-				case FG:
-					fgLayerIdxesArr.add(i);
-					break;
-				case CHARACTERS:
-					charLayerIdxesArr.add(i);
-					break;
-				}
-				// save index
-				layerIdxes[i] = i;
-			}
-			
-			// make bg and fg arrays
-			bgLayerIdxes = fillIntArr(bgLayerIdxesArr);
-			fgLayerIdxes = fillIntArr(fgLayerIdxesArr);
-			charLayerIdxes = fillIntArr(charLayerIdxesArr);
-			
-			// save that we did this so we don't have to recompute!
-			savedLayerCount = trueLayerCount;
-		}
-	}
-	
-	// Returns new int[] with all objects in arr
-	private int[] fillIntArr(Array<Integer> arr) {
-		int[] ret = new int[arr.size];
-		for (int i = 0; i < arr.size; i++) {
-			ret[i] = arr.get(i);
-		}
-		return ret;
-	}
-	
-	/**
 	 * before calling: spriteBatch.begin() must have been called
 	 * after calling: you must call spriteBatch.end() 
 	 * @param mapObject
 	 * @return how many objects were rendered
 	 */
-	private int renderObject(MapObject mapObject, boolean collectBoundingBoxes, float time) {
+	private int renderObject(MapObject mapObject) {
 		if (mapObject instanceof WasabiMapObject) {
 			// Get and check dimensions; only draw if some part of it will be displayed on the
 			// screen. 
@@ -128,24 +78,21 @@ public class WasabiMapRenderer implements MapRenderer {
 				return 0;
 			}
 	
-			// Find the true type and draw.
-			if (mapObject instanceof WasabiTextureMapObject) {
-				// WasabiTextureMapObject
-				WasabiTextureMapObject texObj = (WasabiTextureMapObject) mapObject;
-				spriteBatch.draw(texObj.getTextureRegion(), objx, objy);
-				if (collectBoundingBoxes) {
-					boundingBoxes.add(texObj.getBoundingBox());
-				}
-				return 1;
-			} else if (mapObject instanceof AnimatedMapObject) {
-				// AnimatedMapObject
-				AnimatedMapObject animObj = (AnimatedMapObject) mapObject;
-				spriteBatch.draw(animObj.getCurFrame(time), objx, objy);
-				return 1;
-			} else {
-				// Not rendering any other WasabiMapObject's
-				return 0;
+			// Draw; type will implement this.
+			switch (mode) {
+			case EDITOR:
+				obj.renderEditor(spriteBatch);
+				break;
+			case GAME:
+				obj.renderGame(spriteBatch);
+				break;
 			}
+			
+			// Save bounding boxes? (TODO why doesn't the object just do this?)
+			if (obj.getCollides()) {
+				boundingBoxes.add(obj.getBoundingBox());
+			}
+			return 1;
 		} else {
 			// Not rendering any other MapObject's
 			return 0;
@@ -178,79 +125,75 @@ public class WasabiMapRenderer implements MapRenderer {
 	}
 
 	@Override
-	public void render() {		
-		maybeRecomputeLayerIdxes(); // Always do this before using layerIdxes
-		render(layerIdxes);	
+	public void render() {
+		renderRangeAndCount(0, map.getLayers().getCount() - 1);
+	}
+	
+	public Pair<Integer, Integer> renderAndCount() {
+		return renderRangeAndCount(0, map.getLayers().getCount() - 1);
 	}
 
 	/**
 	 * Convenience to return how many objects were rendered and how many total could have been.
-	 * @param layers
+	 * 
+	 * @param low inclusive
+	 * @param high inclusive, 0-based (must go to at most size(layeres) - 1)
 	 */
-	public Pair<Integer, Integer> renderAndCount(int[] layers) {
-		spriteBatch.begin();
-		int rendered = 0, total = 0;
-		// For provided layers...
-		for (int i = 0; i < layers.length; i++) {
-			MapLayer layer = map.getLayers().get(layers[i]);
-			boolean collides = layer.getProperties().get(Constants.MP.LAYER_TYPE) ==
-					LayerType.COLLISION_FG;
-			// If the layer is visible
-			if (layer.isVisible()) {
-				float time = 0.0f;
-				if (layer instanceof LevelEditor_MapLayer) {
-					time = ((LevelEditor_MapLayer) layer).getTime();
-				}
-				Iterator<MapObject> oit = layer.getObjects().iterator();
-				total += layer.getObjects().getCount();
-				// For all objects
-				while (oit.hasNext()) {
-					MapObject mapObject = oit.next();
-					// If the object is visible
-					if (mapObject.isVisible()) {						
-						rendered += renderObject(mapObject, collides, time);
-					}
-				}
-			}			
-		}
+	public Pair<Integer, Integer> renderRangeAndCount(int low, int high) {
+		// For bookkeeping
+		renderedAndTotal.first = 0;
+		renderedAndTotal.second = 0;		
 
+		spriteBatch.begin();
+		for (int i = low; i <= high; i++) {
+			MapLayer layer = map.getLayers().get(i);
+			renderLayerAndCount(layer, renderedAndTotal);
+		}
 		spriteBatch.end();
 		
 		// For the client's bookkeeping.
-		renderedAndTotal.first = rendered;
-		renderedAndTotal.second = total;
 		return renderedAndTotal;
+	}
+	
+	/**
+	 * NOTE: throws away saved value of rendered/total objects.
+	 * before calling: must call spriteBatch.begin()
+	 * after calling: must call spriteBatch.end()
+	 * @param layer
+	 */
+	public void renderLayer(MapLayer layer) {
+		renderLayerAndCount(layer, renderedAndTotal);
+		// avoid overflow
+		renderedAndTotal.first = 0;
+		renderedAndTotal.second = 0;
+	}
+	
+	private void renderLayerAndCount(MapLayer layer, Pair<Integer, Integer> out) {
+		// If the layer is visible
+		if (layer.isVisible()) {
+			Iterator<MapObject> oit = layer.getObjects().iterator();
+			out.second += layer.getObjects().getCount();
+			// For all objects
+			while (oit.hasNext()) {
+				MapObject mapObject = oit.next();
+				// If the object is visible
+				if (mapObject.isVisible()) {						
+					out.first += renderObject(mapObject);
+				}
+			}
+		}
 	}
 	
 	@Override
 	public void render(int[] layers) {
-		// Throw away return value
-		renderAndCount(layers);
-	}
-	
-	public Pair<Integer, Integer> renderBackgroundAndCount() {
-		maybeRecomputeLayerIdxes(); // Always do this before using layerIdxes
-		return renderAndCount(bgLayerIdxes);
-	}
-	
-	public Pair<Integer, Integer> renderCharactersAndCount() {
-		maybeRecomputeLayerIdxes(); // Always do this before using layerIdxes
-		return renderAndCount(charLayerIdxes);
+		Debug.print("THIS IS A STUPID METHOD");
+		throw new RuntimeException("THIS IS A STUPID METHOD");
 	}	
 	
 	/**
-	 * Note: we assume that any collision layers are in the foreground.
+	 * Must call before rendering begins where you care about bounding boxes.
 	 */
-	public Pair<Integer, Integer> renderForegroundAndCount() {
-		maybeRecomputeLayerIdxes(); // Always do this before using layerIdxes
-		boundingBoxes.clear();
-		Pair<Integer, Integer> counts = renderAndCount(fgLayerIdxes);
-		if (shapeRenderer != null && renderBoundingBoxes) {			
-			Common.renderBoundingBoxes(spriteBatch.getProjectionMatrix(), shapeRenderer,
-					boundingBoxes);
-		}
-		return counts;
+	public void start() {
+		boundingBoxes.clear();		
 	}
-	
-	
 }

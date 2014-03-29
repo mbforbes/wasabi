@@ -39,8 +39,8 @@ public class LevelEditor_Controls extends Controls {
 		addControlText("");
 		addControlText("Save/Test/Export:");			
 		addKeyCommand(Keys.X, KeyModifier.ANY, LevelEditor_Commands.TEST_MAP, "X");
-		addKeyCommand(Keys.S, KeyModifier.CONTROL, LevelEditor_Commands.SAVE_MAP, "S");
-		addKeyCommand(Keys.O, KeyModifier.CONTROL, LevelEditor_Commands.LOAD_MAP, "O");
+		addKeyCommand(Keys.S, KeyModifier.CONTROL, LevelEditor_Commands.SAVE_MAP, "CTRL-S");
+		addKeyCommand(Keys.O, KeyModifier.CONTROL, LevelEditor_Commands.LOAD_MAP, "CTRL-O");
 		
 		addControlText("");
 		addControlText("Other:");

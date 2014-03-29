@@ -1,6 +1,6 @@
 Features
 
-* Implement character layers (place hero, place enemies)
+
 
 * Implement notifications / toast (likely in graphics.Common)
 

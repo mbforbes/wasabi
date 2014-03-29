@@ -1,0 +1,24 @@
+Final objects must have enough info:
+	- to be fully recreated in editor
+	- to be fully functional in gameplay
+
+Primitives (rendering in editor before placement in map)
+	- texture
+	- animation
+	- region (color outline w/ fill)
+	- location (maybe circle)
+
+Final object types. Options: collide-able
+	- static objects (bg, fg)                       [textures, animations]
+	- spawn positions                               [certain animations]
+	- physics-able objects                          [textures, animations)]
+	- backdrop objects (like mountain--don't move)  [textures, animations]
+	- parallax objects                              [textures, animations]
+	- event regions                                 [colored regions]
+
+The type of object seems to be fully based on what layer it's in. Thus, final
+objects need:
+
+- Primitive type
+- Primitive data for reloading (e.g. string of texture filename)
+- Game data (e.g. event properties, parallax speed, enemy type)

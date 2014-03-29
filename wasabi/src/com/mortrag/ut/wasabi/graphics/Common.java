@@ -23,6 +23,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.Array;
 import com.mortrag.ut.wasabi.characters.WasabiCharacter;
+import com.mortrag.ut.wasabi.util.Constants.LE;
 import com.mortrag.ut.wasabi.util.Debug;
 
 public class Common {	
@@ -95,7 +96,7 @@ public class Common {
 	 * @param batch
 	 * @param c
 	 */
-	public static void displayFps(Camera camera, SpriteBatch batch) {
+	public static void displayDebugText(Camera camera, SpriteBatch batch) {
 		// Append FPS; get & clear the debug buffer.
 		Debug.debugText.append("FPS: " + Gdx.graphics.getFramesPerSecond());
 		String debugStr = Debug.debugText.toString();
@@ -103,8 +104,8 @@ public class Common {
 		
 		batch.setProjectionMatrix(camera.combined);
 		batch.begin();
-		debugFont.drawWrapped(batch, debugStr, 0.0f, Gdx.graphics.getHeight(),
-				Gdx.graphics.getWidth(), HAlignment.LEFT);
+		debugFont.drawWrapped(batch, debugStr, 0.0f, Gdx.graphics.getHeight() - LE.LAYER_BOX_HEIGHT
+				- (LE.LAYER_BOX_MARGIN * 2), Gdx.graphics.getWidth(), HAlignment.LEFT);
 		batch.end();
 	}	
 	

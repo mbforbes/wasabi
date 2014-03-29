@@ -5,6 +5,7 @@ import java.util.Map;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasRegion;
 import com.badlogic.gdx.utils.Array;
+import com.mortrag.ut.wasabi.util.Constants.MapObjectPrimitiveType;
 
 /**
  * For MapLayer's and MapObject's that are saved/loaded through Kryo, they need to be hooked up
@@ -22,12 +23,9 @@ public interface Initializable {
 
 		/**
 		 * Call to ensure this MapLayer has the textures it needs associated with it. This should
-		 * also call initializeObject on all of its MapObjects.
-		 * @param atlas passed to the MapObjects
-		 * @param regionMap for this MapLayer
+		 * also call initialize on all of its MapObjects.
 		 */
-		public void initialize(TextureAtlas atlas, Map<String, Array<AtlasRegion>> regionMap,
-				Array<WasabiAnimation> wasabiAnimations);
+		public void initialize(Map<MapObjectPrimitiveType, Array<MapObjectPrimitive>> primitiveMap);
 	}
 	
 	/**
@@ -36,9 +34,10 @@ public interface Initializable {
 	 */
 	public interface ObjectInitializable {
 		/**
-		 * Call to ensure this MapObject has the texture it needs associated with it.
+		 * Call to ensure this MapObject has its resources (e.g. texture) it needs associated with
+		 * it.
 		 * @param atlas
 		 */
-		public void initialize(TextureAtlas atlas);
+		public void initialize(Array<MapObjectPrimitive> primitives);
 	}
 }

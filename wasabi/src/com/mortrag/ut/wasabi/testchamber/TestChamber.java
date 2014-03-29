@@ -3,6 +3,7 @@ package com.mortrag.ut.wasabi.testchamber;
 import java.util.Iterator;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.GL20;
@@ -39,7 +40,7 @@ import com.mortrag.ut.wasabi.leveleditor.LevelEditor;
 import com.mortrag.ut.wasabi.map.WasabiMapObject;
 import com.mortrag.ut.wasabi.map.WasabiTextureMapObject;
 import com.mortrag.ut.wasabi.util.Constants;
-import com.mortrag.ut.wasabi.util.Constants.MP.LayerType;
+import com.mortrag.ut.wasabi.util.Constants.MP.CharObjectType;
 import com.mortrag.ut.wasabi.util.Debug;
 import com.mortrag.ut.wasabi.util.Pair;
 
@@ -71,6 +72,7 @@ public class TestChamber implements Screen {
 	private ShapeRenderer shapeRenderer;
 	
 	// Input
+	private InputMultiplexer inputMultiplexer;
 	private WasabiInput input;
 	private Controls controls;
 	private Array<Command> commandList;
@@ -98,10 +100,12 @@ public class TestChamber implements Screen {
 	// CONSTRUCTORS
 	// ---------------------------------------------------------------------------------------------	
 	
-	public TestChamber(WasabiGame game, WasabiInput input, Map map, SpriteBatch batch,
+	public TestChamber(WasabiGame game, InputMultiplexer inputMultiplexer, Map map, SpriteBatch batch,
 			TextureAtlas atlas) {		
 		this.game = game;
-		this.input = input;
+		this.inputMultiplexer = inputMultiplexer;
+		// assuming WasabiInput is first input processor
+		this.input = (WasabiInput) inputMultiplexer.getProcessors().get(0);
 		this.map = map;
 		MapProperties mapProperties = map.getProperties();
 		levelWidth = (Float) mapProperties.get(Constants.MP.LEVEL_WIDTH);
@@ -166,29 +170,26 @@ public class TestChamber implements Screen {
 		advectables.clear();
 		behaviorables.clear();
 		
-		// get layer with character types
-		MapLayer layer = null;
-		for (int i = 0; i < map.getLayers().getCount(); i++) {
-			MapLayer curLayer = map.getLayers().get(i);
-			if (curLayer.getProperties().get(Constants.MP.LAYER_TYPE, Constants.MP.LayerType.class)
-					== Constants.MP.LayerType.CHARACTERS) {
-				layer = curLayer;
-				break;
+		// check all layers
+		for (int layerIdx = 0; layerIdx < map.getLayers().getCount(); layerIdx++) {
+			MapLayer layer = map.getLayers().get(layerIdx);
+			
+			// check all objects in layer
+			for (int objIdx = 0; objIdx < layer.getObjects().getCount(); objIdx++) {
+				WasabiMapObject curObj = (WasabiMapObject) layer.getObjects().get(objIdx);
+				CharObjectType charObjType = curObj.getProperties().get(Constants.MP.CHAR_OBJECT_TYPE, CharObjectType.class);
+				// if we've got a character spawn point, then deal with it
+				if (charObjType == Constants.MP.CharObjectType.SPAWN_POINT) {
+					hero = new Hero(curObj.getX(), curObj.getY(), atlas);
+					characters.add(hero);
+				} else if (charObjType == Constants.MP.CharObjectType.ARMOR_ENEMY) {
+					characters.add(new ArmorEnemy(curObj.getX(), curObj.getY(), atlas));
+				} else {
+					// that's all the charaaceters we've implemented...
+				}
 			}
-		}
-		
-		// get objects out of layer!
-		for (int i = 0; i < layer.getObjects().getCount(); i++) {
-			WasabiMapObject curObj = (WasabiMapObject) layer.getObjects().get(i);
-			if (curObj.getName().equals(Constants.ON.SPAWN_POINT)) {
-				hero = new Hero(curObj.getX(), curObj.getY(), atlas);
-				characters.add(hero);
-			} else if (curObj.getName().equals(Constants.ON.ARMOR_ENEMY)) {
-				characters.add(new ArmorEnemy(curObj.getX(), curObj.getY(), atlas));
-			} else {
-				// that's all the charaaceters we've implemented...
-			}
-		}
+
+		}		
 		
 		// now, populate other lists we care about from character list
 		Iterator<WasabiCharacter> cit = characters.iterator();
@@ -210,14 +211,22 @@ public class TestChamber implements Screen {
 	}
 	
 	private void updateBoundingBoxes() {
+		// get fresh
 		boundaries.clear();
+		
+		// add object bounding boxes
 		Iterator<MapLayer> lit = map.getLayers().iterator();		
 		while (lit.hasNext()) {
 			MapLayer layer = lit.next();
-			if (layer.getProperties().get(Constants.MP.LAYER_TYPE) == LayerType.COLLISION_FG) {
-				addBoundingBoxes(layer, boundaries);
+			Iterator<MapObject> oit = layer.getObjects().iterator();
+			while (oit.hasNext()) {
+				WasabiMapObject obj = (WasabiMapObject) oit.next();
+				if (obj.getCollides()) {
+					boundaries.add(obj.getBoundingBox());
+				}
 			}
 		}
+		
 		// add level bounding boxes
 		boundaries.add(new BoundingBox(new Vector3(0.0f, -1.0f, 0.0f),
 				new Vector3(levelWidth, 0.0f, 0.0f))); // bottom
@@ -229,21 +238,11 @@ public class TestChamber implements Screen {
 				new Vector3(levelWidth + 1.0f, levelHeight, 0.0f))); // right
 	}
 	
-	private void addBoundingBoxes(MapLayer layer, Array<BoundingBox> boxes) {
-		Iterator<MapObject> oit = layer.getObjects().iterator();
-		while (oit.hasNext()) {
-			MapObject mapObject = oit.next();
-			// Right now we only deal with our custom WasabiTextureMapObjects...
-			if (mapObject instanceof WasabiTextureMapObject) {
-				boxes.add(((WasabiTextureMapObject) mapObject).getBoundingBox());
-			}
-		}
-	}
-	
 	private void backToEditor() {
 		if (!game.screenLoaded(LevelEditor.NAME)) {
 			// Screen hasn't been loaded--make it!
-			game.addScreen(new LevelEditor(game, input), LevelEditor.NAME);
+			// NOTE: this is kind of a weird concept; who knows if it would work.  
+			game.addScreen(new LevelEditor(game, inputMultiplexer), LevelEditor.NAME);
 		}
 		game.getAndSetScreen(LevelEditor.NAME);		
 	}
@@ -545,35 +544,25 @@ public class TestChamber implements Screen {
 		
 		// Render the map background.
 		mapRenderer.setView((OrthographicCamera)mainCam);
-		Pair<Integer, Integer> counts = mapRenderer.renderBackgroundAndCount();
-		rendered += counts.first;
-		total += counts.second;
-		
-		// Render the characters!
-		Iterator<WasabiCharacter> cit = characters.iterator();
-		while (cit.hasNext()) {
-			WasabiCharacter c = cit.next();
-			c.render(batch, delta);
-		}
-		
-		// Render the map background.
-		counts = mapRenderer.renderForegroundAndCount();		
+		Pair<Integer, Integer> counts = mapRenderer.renderAndCount();
+		// TODO render characters in the map renderer
 		rendered += counts.first;
 		total += counts.second;
 		
 		Debug.debugLine("Rendered " + rendered + " / " + total + " objects.");
 		
-		// Render character bounding boxes.
-		if (Debug.DEBUG && mapRenderer.renderBoundingBoxes) {
-			renderCharacterBoundingBoxes();
-		}
+		// TODO this shouldn't be necessary
+//		// Render character bounding boxes.
+//		if (Debug.DEBUG && mapRenderer.renderBoundingBoxes) {
+//			renderCharacterBoundingBoxes();
+//		}
 		
 		// Paused overlay
 		if (paused) {
 			Common.drawPauseOverlay(overallCam, batch, controls.getControlsList());
 		}
 		if (Debug.DEBUG) {
-			Common.displayFps(overallCam, batch);
+			Common.displayDebugText(overallCam, batch);
 		}
 	}
 

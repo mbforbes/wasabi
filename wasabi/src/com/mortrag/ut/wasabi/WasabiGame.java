@@ -6,6 +6,7 @@ import java.util.Map;
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.Screen;
 import com.mortrag.ut.wasabi.input.WasabiInput;
 import com.mortrag.ut.wasabi.leveleditor.LevelEditor;
@@ -39,11 +40,14 @@ public class WasabiGame extends Game implements ApplicationListener {
 		screenMap = new HashMap<String, Screen>();
 		
 		// Set up input processing
-		WasabiInput input = new WasabiInput();
-		Gdx.input.setInputProcessor(input);
+		InputMultiplexer inputMultiplexer = new InputMultiplexer();
+		// mainInput is the input for the screen (e.g. behind the GUI)
+		WasabiInput mainInput = new WasabiInput();
+		inputMultiplexer.addProcessor(mainInput);
+		Gdx.input.setInputProcessor(inputMultiplexer);
 		
 		// Create and start the "first level" (level editor)
-		addScreen(new LevelEditor(this, input), LevelEditor.NAME);
+		addScreen(new LevelEditor(this, inputMultiplexer), LevelEditor.NAME);
 		getAndSetScreen(LevelEditor.NAME);
 	}
 	

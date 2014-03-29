@@ -15,8 +15,8 @@ public class TestChamber_MapRenderer extends WasabiMapRenderer {
 
 	@Override
 	public void render(int[] layers) {
-		Pair<Integer, Integer> renderedAndCount = super.renderAndCount(layers);
-		Debug.debugLine("Rendered " + renderedAndCount.first + " / " + renderedAndCount.second +
+		Pair<Integer, Integer> renderedAndTotal = super.renderAndCount();
+		Debug.debugLine("Rendered " + renderedAndTotal.first + " / " + renderedAndTotal.second +
 				" objects");
 	}
 }
