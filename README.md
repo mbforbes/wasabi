@@ -1,4 +1,14 @@
-#Wasabi
+# Wasabi
+An unfinished game made using libGDX and Java.
+
+## About
+This project was written as a test game from 'scratch' off of libGDX in Java. Development continued for roughly three months until it was halted indefinitely; it's no longer being worked on.
+
+The inklinkgs of a rudimentary game engine were emerging, with the principal features being an interactive point-and-click level editor, with a single button-press to start playing the level. See the features log for more detailed info about what was implemented.
+
+All art assets were tracked separately, and were not my work and so are not included in this project. The code is all mine, however, and is free to use. It shouldn't be difficult to see where you need to put art assets; just change the `textureInputDir` in Main (wasabi-desktop/src/com/mortrag/ut/wasabi/Main.java) to point to where your images are, or pass the directory as the first command line argument, and it will automatically use libGDX's texture packer to pack them into sprite sheets, then load them into the level editor for use.
+
+As of writing (18 April, 2014) there were significant changes made in the characterLayer branch, which was to eventually be merged into master. This might be a good place to start.
 
 ## Features
 
