@@ -11,7 +11,7 @@ _The editor, zoomed-in. This shows pixel-perfect placement capabilities. Levels 
 ![A screenshot of the play mode.](screen_play_bb.png)
 _The same level shown in the editor, this time in 'play' mode. Debug info is shown in the top left, and bounding boxes are drawn on all collidable objects (the player [green] and enemy [blue]). Basic physics are included: gravity, movement from input, basic NPC movement, and collisions with level boundaries / collidable terrain / enemies._
 
-Note that no art assets shown are included in this repository; they are property of copyright a separate artist. (The code itself is available under the MIT license.)
+Note that no art assets shown are included in this repository; they are property of a separate artist. (The code itself is available under the MIT license.)
 
 ## About
 This project was written as a test game from 'scratch' off of libGDX in Java. Development continued for roughly three months until it was halted indefinitely; it's no longer being worked on.
